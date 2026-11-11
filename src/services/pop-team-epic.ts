@@ -9,96 +9,96 @@ import crypto from 'node:crypto'
 import sharp, { type OverlayOptions } from 'sharp'
 
 /**
- * contentsInfo API のページデータ
+ * Page data of the contentsInfo API
  */
 interface PageContentInfo {
-  /** 画像URL（署名付き） */
+  /** Image URL (signed) */
   imageUrl: string
-  /** スクランブル配列（JSON文字列） */
+  /** Scramble array (JSON string) */
   scramble: string
-  /** ソート順 */
+  /** Sort order */
   sort: number
-  /** 画像の幅 */
+  /** Image width */
   width: number
-  /** 画像の高さ */
+  /** Image height */
   height: number
-  /** 有効期限 */
+  /** Expiration */
   expiresOn: number
 }
 
 /**
- * contentsInfo API のレスポンス
+ * Response of the contentsInfo API
  */
 interface ContentsInfoResponse {
-  /** 総ページ数 */
+  /** Total number of pages */
   totalPages: number
-  /** スクロール方向 */
+  /** Scroll direction */
   scrollDirection: string
-  /** 見開き指定 */
+  /** Spread specification */
   spreadDesignation: number
-  /** ページデータ（ページ順に格納された配列） */
+  /** Page data (an array in page order) */
   result: PageContentInfo[]
 }
 
 /**
- * 竹コミ！公式 RSS のサムネイル情報
+ * Thumbnail element of the official RSS of Takecomic (竹コミ！)
  */
 interface TakecomicRssMediaThumbnail {
-  /** サムネイル画像 URL */
+  /** Thumbnail image URL */
   '@_url'?: string
 }
 
 /**
- * 竹コミ！公式 RSS の item 情報
+ * item element of the official RSS of Takecomic
  */
 interface TakecomicRssItem {
-  /** エピソードタイトル */
+  /** Episode title */
   title?: string
-  /** エピソード URL */
+  /** Episode URL */
   link?: string
-  /** 公開日時 */
+  /** Publication time */
   pubDate?: string
-  /** サムネイル情報 */
+  /** Thumbnail */
   'media:thumbnail'?: TakecomicRssMediaThumbnail
 }
 
 /**
- * 竹コミ！公式 RSS の channel 情報
+ * channel element of the official RSS of Takecomic
  */
 interface TakecomicRssChannel {
-  /** エピソード一覧 */
+  /** Episodes */
   item?: TakecomicRssItem | TakecomicRssItem[]
 }
 
 /**
- * 竹コミ！公式 RSS のレスポンス
+ * Parsed official RSS of Takecomic
  */
 interface TakecomicRssResponse {
-  /** RSS 本体 */
+  /** RSS root */
   rss?: {
-    /** チャンネル情報 */
+    /** Channel */
     channel?: TakecomicRssChannel
   }
 }
 
 /**
- * ポプテピピックのエピソード情報
+ * An episode of Pop Team Epic
  */
 interface TakecomicEpisode {
-  /** タイトル */
+  /** Title */
   title: string
-  /** エピソード URL */
+  /** Episode URL */
   url: string
-  /** 公開日（YYYY/MM/DD） */
+  /** Publication date (YYYY/MM/DD, JST) */
   date: string
-  /** サムネイル画像 URL */
+  /** Thumbnail image URL */
   thumbnailUrl: string
 }
 
 /**
- * ポプテピピック RSS サービス
+ * Pop Team Epic (ポプテピピック) service.
  *
- * 竹コミ！からポプテピピックの漫画情報を収集し、RSS フィードを生成する
+ * Collects the latest episodes from Takecomic (竹コミ！) and delivers each episode as an item whose content is the page images.
  */
 export default class PopTeamEpic extends BaseService {
   private title: string | null = null
@@ -208,10 +208,10 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * エピソード一覧を収集して RSS アイテムを生成する
+   * Collects the episodes and builds the RSS items.
    *
-   * @param seriesUrl シリーズページの URL
-   * @returns RSS アイテムの配列
+   * @param seriesUrl URL of the series page
+   * @returns RSS items
    */
   private async collectTakecomicItems(seriesUrl: string): Promise<Item[]> {
     const logger = Logger.configure('PopTeamEpic::collectTakecomicItems')
@@ -221,10 +221,9 @@ export default class PopTeamEpic extends BaseService {
     for (const episode of episodes) {
       const date = this.parseJstDate(episode.date)
 
-      // エピソードページから全画像を取得
       const imageUrls = await this.fetchEpisodeImages(episode.url, logger)
 
-      // 画像が取得できなかった場合はサムネイルにフォールバック
+      // Fall back to the thumbnail if no page image could be obtained
       if (imageUrls.length === 0 && episode.thumbnailUrl) {
         logger.warn(`⚠️ Falling back to thumbnail for ${episode.title}`)
         const thumbnailUrls = await this.saveImages(
@@ -258,11 +257,11 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * 公式 RSS からエピソード一覧を取得する
+   * Fetches the latest 10 episodes from the official RSS (`<series URL>/rss`).
    *
-   * @param seriesUrl シリーズページの URL
-   * @param logger ロガー
-   * @returns エピソード情報の配列
+   * @param seriesUrl URL of the series page
+   * @param logger Logger
+   * @returns Episodes (empty array on failure)
    */
   private async fetchTakecomicEpisodesFromRss(
     seriesUrl: string,
@@ -320,18 +319,17 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * エピソードページから全画像を取得する
+   * Fetches all page images of an episode.
    *
-   * @param episodeUrl エピソードページの URL
-   * @param logger ロガー
-   * @returns 画像 URL の配列
+   * @param episodeUrl URL of the episode page
+   * @param logger Logger
+   * @returns URLs of the saved images (empty array on failure)
    */
   private async fetchEpisodeImages(
     episodeUrl: string,
     logger: Logger
   ): Promise<string[]> {
     try {
-      // エピソードページを取得
       const res = await fetch(episodeUrl, {
         headers: {
           ...PopTeamEpic.COMMON_HEADERS,
@@ -344,14 +342,12 @@ export default class PopTeamEpic extends BaseService {
         return []
       }
 
-      // viewerId を抽出
       const viewerId = this.extractViewerId(await res.text())
       if (!viewerId) {
         logger.warn('❗ viewerId not found in episode page')
         return []
       }
 
-      // contentsInfo API を呼び出し
       const contentsInfo = await this.fetchContentsInfo(viewerId, episodeUrl)
       if (!contentsInfo || contentsInfo.totalPages === 0) {
         logger.warn('❗ No pages found in contentsInfo')
@@ -360,7 +356,6 @@ export default class PopTeamEpic extends BaseService {
 
       logger.info(`📖 Found ${contentsInfo.totalPages} pages`)
 
-      // 各ページの画像を取得・復元
       const imageUrls: string[] = []
       for (let i = 0; i < contentsInfo.totalPages; i++) {
         const pageData = contentsInfo.result[i] as PageContentInfo | undefined
@@ -386,34 +381,34 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * HTML から viewerId を抽出する
+   * Extracts the viewerId from HTML.
    *
-   * @param html HTML 文字列
-   * @returns viewerId または null
+   * @param html HTML string
+   * @returns The viewerId, or null if not found
    */
   private extractViewerId(html: string): string | null {
-    // data-comici-viewer-id 属性から viewerId を探す
+    // Look for the viewerId in the data-comici-viewer-id attribute
     const dataAttrRegex = /data-comici-viewer-id="([a-f0-9]{32})"/i
     const dataAttrMatch = dataAttrRegex.exec(html)
     if (dataAttrMatch?.[1]) {
       return dataAttrMatch[1]
     }
 
-    // __next_f (React Server Components) から viewerId を探す（フォールバック）
+    // Fallback: look for it in __next_f (React Server Components)
     const jsonRegex = /"viewerId":"([a-f0-9]{32})"/i
     const jsonMatch = jsonRegex.exec(html)
     return jsonMatch?.[1] ?? null
   }
 
   /**
-   * contentsInfo API を呼び出す
+   * Calls the contentsInfo API.
    *
-   * API は page-to が実際のページ数を超えると 400 エラーを返すため、
-   * まず page-to=1 で totalPages を取得し、その後全ページを取得する
+   * The API returns a 400 error if page-to exceeds the actual number of pages,
+   * so first fetch totalPages with page-to=1, then fetch all pages.
    *
-   * @param viewerId ビューアー ID
-   * @param episodeUrl エピソード URL（Referer ヘッダーに使用）
-   * @returns API レスポンス
+   * @param viewerId Viewer ID
+   * @param episodeUrl Episode URL (used for the Referer header)
+   * @returns API response, or null on an HTTP error
    */
   private async fetchContentsInfo(
     viewerId: string,
@@ -428,7 +423,7 @@ export default class PopTeamEpic extends BaseService {
       Accept: 'application/json, text/plain, */*',
     }
 
-    // ステップ1: page-to=1 で totalPages を取得
+    // Step 1: get totalPages with page-to=1
     const initialParams = new URLSearchParams({
       'user-id': '',
       'comici-viewer-id': viewerId,
@@ -453,11 +448,11 @@ export default class PopTeamEpic extends BaseService {
     logger.info(`📖 totalPages=${totalPages}`)
 
     if (totalPages <= 1) {
-      // 1 ページのみの場合は初回レスポンスをそのまま返す
+      // With a single page, the first response is already complete
       return initialData
     }
 
-    // ステップ2: 全ページを取得
+    // Step 2: fetch all pages
     const fullParams = new URLSearchParams({
       'user-id': '',
       'comici-viewer-id': viewerId,
@@ -481,12 +476,12 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * スクランブルされた画像を取得し、復元して保存する
+   * Downloads a scrambled image, restores it and saves it.
    *
-   * @param pageData ページデータ
-   * @param episodeUrl エピソード URL（Referer ヘッダーに使用）
-   * @param logger ロガー
-   * @returns 保存した画像の URL
+   * @param pageData Page data
+   * @param episodeUrl Episode URL (used for the Referer header)
+   * @param logger Logger
+   * @returns URL of the saved image, or null on failure
    */
   private async fetchAndUnscrambleImage(
     pageData: PageContentInfo,
@@ -494,7 +489,7 @@ export default class PopTeamEpic extends BaseService {
     logger: Logger
   ): Promise<string | null> {
     try {
-      // 画像をダウンロード（CloudFront 署名付き URL には適切なヘッダーが必要）
+      // The CloudFront signed URL requires appropriate headers
       const res = await fetch(pageData.imageUrl, {
         headers: {
           Referer: episodeUrl,
@@ -511,7 +506,6 @@ export default class PopTeamEpic extends BaseService {
 
       const scrambledBuffer = Buffer.from(await res.arrayBuffer())
 
-      // スクランブル配列をパース
       let scramble: number[]
       try {
         scramble = JSON.parse(pageData.scramble)
@@ -520,13 +514,11 @@ export default class PopTeamEpic extends BaseService {
         return await this.saveUnscrambledImage(scrambledBuffer)
       }
 
-      // 画像を復元
       const unscrambledBuffer = await this.unscrambleImage(
         scrambledBuffer,
         scramble
       )
 
-      // 画像を保存
       return await this.saveUnscrambledImage(unscrambledBuffer)
     } catch (error) {
       logger.warn(`❗ Failed to unscramble image: ${String(error)}`)
@@ -535,38 +527,35 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * スクランブルされた画像を復元する
+   * Restores a scrambled image.
    *
-   * @param buffer スクランブルされた画像バッファ
-   * @param scramble スクランブル配列
-   * @returns 復元された画像バッファ
+   * @param buffer Scrambled image buffer
+   * @param scramble Scramble array
+   * @returns Restored image buffer (the input if it cannot be restored)
    */
   private async unscrambleImage(
     buffer: Buffer,
     scramble: number[]
   ): Promise<Buffer> {
-    // グリッドサイズを計算（通常は 4x4 = 16 タイル）
+    // Grid size (normally 4x4 = 16 tiles)
     const gridSize = Math.sqrt(scramble.length)
     if (!Number.isSafeInteger(gridSize)) {
-      // スクランブルなしとして元の画像を返す
+      // Not a square grid: treat as not scrambled
       return buffer
     }
 
-    // 元画像をロード
     const image = sharp(buffer)
     const metadata = await image.metadata()
 
-    // メタデータが取得できない場合は元の画像を返す
     if (!metadata.width || !metadata.height) {
       return buffer
     }
 
-    // 実際の画像サイズを使用
     const actualTileWidth = Math.floor(metadata.width / gridSize)
     const actualTileHeight = Math.floor(metadata.height / gridSize)
 
-    // 各タイルを抽出（clone() を使用して再デコードを避ける）
-    // Column-Major 順序で抽出する: (0,0), (0,1), (0,2), (0,3), (1,0)...
+    // Extract the tiles (clone() avoids decoding again)
+    // In column-major order: (0,0), (0,1), (0,2), (0,3), (1,0)...
     const tiles: Buffer[] = []
     for (let c = 0; c < gridSize; c++) {
       for (let r = 0; r < gridSize; r++) {
@@ -587,9 +576,8 @@ export default class PopTeamEpic extends BaseService {
       }
     }
 
-    // スクランブル配列に従ってタイルを再配置
-    // scramble[i] = srcIndex
-    // 出力も Column-Major 順序で配置する
+    // Rearrange the tiles according to the scramble array: scramble[i] = srcIndex
+    // The output is also placed in column-major order
     const compositeOperations: OverlayOptions[] = []
     let destTileIndex = 0
     for (let c = 0; c < gridSize; c++) {
@@ -609,7 +597,6 @@ export default class PopTeamEpic extends BaseService {
       }
     }
 
-    // 復元画像を作成
     const unscrambled = await sharp({
       create: {
         width: actualTileWidth * gridSize,
@@ -626,17 +613,16 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * 復元した画像を保存する
+   * Saves a restored image to `output/popute/` after trimming it and adding a 10px white margin.
    *
-   * @param buffer 画像バッファ
-   * @returns 保存した画像の URL
+   * @param buffer Image buffer
+   * @returns URL of the saved image
    */
   private async saveUnscrambledImage(buffer: Buffer): Promise<string> {
     if (!fs.existsSync('output/popute/')) {
       fs.mkdirSync('output/popute/', { recursive: true })
     }
 
-    // トリミングとパディングを追加
     const processedBuffer = await sharp(buffer)
       .trim()
       .extend({
@@ -655,10 +641,10 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * 公式 RSS の pubDate を JST の日付文字列へ変換する
+   * Converts the pubDate of the official RSS to a JST date string.
    *
-   * @param pubDate 公式 RSS の pubDate
-   * @returns YYYY/MM/DD 形式の日付文字列
+   * @param pubDate pubDate of the official RSS
+   * @returns Date string in YYYY/MM/DD format (empty string if unparsable)
    */
   private formatRssPubDateToJstDate(pubDate: string): string {
     const parsedDate = new Date(pubDate)
@@ -674,10 +660,10 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * 公式 RSS の URL をエピソード URL として正規化する
+   * Normalizes a URL in the official RSS to an episode URL.
    *
-   * @param url 公式 RSS 内の URL
-   * @returns クエリを除去したエピソード URL
+   * @param url URL in the official RSS
+   * @returns Episode URL without query, hash and trailing slash
    */
   private normalizeEpisodeUrl(url: string): string {
     const normalizedUrl = PopTeamEpic.normalizeUrl(url)

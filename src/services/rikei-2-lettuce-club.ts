@@ -30,8 +30,8 @@ export default class Rikei2LettuceClub extends BaseService {
     const $ = cheerio.load(await res.text())
     const items: Item[] = []
     const seenLinks = new Set<string>()
-    // グリッド表示・「最新話」ハイライト表示のどちらも同じ形式のリンクを持つため、
-    // 表示ブロックごとに分けず一覧全体からまとめて拾う
+    // The grid view and the "latest episode" highlight view use the same link format,
+    // so collect from the whole list instead of per display block
     for (const index of $('a[href*="/news/article/"]')) {
       const item = $(index)
       const href = item.attr('href') ?? ''
@@ -47,7 +47,7 @@ export default class Rikei2LettuceClub extends BaseService {
       }
       seenLinks.add(link)
 
-      // グリッド表示ではジャンルタグの <p> の次にタイトルの <p> が続く
+      // In the grid view, the title <p> follows the genre tag <p>
       const title = item.find('p').last().text().trim()
 
       const content = await this.getContent(link)
@@ -86,7 +86,7 @@ export default class Rikei2LettuceClub extends BaseService {
     }
     const $ = cheerio.load(await res.text())
 
-    // 広告・関連商品等の figure/img と区別するため、記事ID を含む画像のみに絞り込む
+    // Keep only images whose URL contains the article ID, to exclude figure/img of ads and related products
     const articleId = /\/article\/(\d+)\//.exec(url)?.[1]
 
     const images: string[] = []
@@ -101,7 +101,7 @@ export default class Rikei2LettuceClub extends BaseService {
       images.push(src)
     }
 
-    // ページ末尾のランキングウィジェットにも <time> があるため先頭のものを使う
+    // The ranking widget at the bottom also has a <time>, so use the first one
     const rawPubDate = $('time[datetime*="T"]').first().attr('datetime') ?? ''
     const pubDate = rawPubDate ? new Date(rawPubDate).toUTCString() : ''
     return {

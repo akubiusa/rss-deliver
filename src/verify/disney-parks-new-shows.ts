@@ -21,10 +21,10 @@ let failures = 0
 let total = 0
 
 /**
- * 期待値と実際の値を比較し、結果を出力する。
- * @param name ケース名
- * @param actual 実際の値
- * @param expected 期待値
+ * Compares the actual value with the expected one and prints the result.
+ * @param name Case name
+ * @param actual Actual value
+ * @param expected Expected value
  */
 function check(name: string, actual: unknown, expected: unknown): void {
   total++
@@ -39,20 +39,20 @@ function check(name: string, actual: unknown, expected: unknown): void {
 }
 
 /**
- * NOW から指定ミリ秒だけ前の日時を返す。
- * @param ms 経過ミリ秒
- * @returns 日時
+ * Returns the time the given number of milliseconds before NOW.
+ * @param ms Elapsed milliseconds
+ * @returns Time
  */
 function ago(ms: number): Date {
   return new Date(NOW.getTime() - ms)
 }
 
 /**
- * 検証用のアイテムを作る。
- * @param path link の BASE_URL 以降
- * @param publishedAt 公開日時
- * @param title タイトル（省略時は path）
- * @returns アイテム
+ * Creates an item for verification.
+ * @param path The part of the link after BASE_URL
+ * @param publishedAt Publication time
+ * @param title Title (path if omitted)
+ * @returns Item
  */
 function makeItem(path: string, publishedAt: Date, title = path): Item {
   const link = `${BASE_URL}${path}`
@@ -65,12 +65,12 @@ function makeItem(path: string, publishedAt: Date, title = path): Item {
 }
 
 /**
- * 検証用の候補を作る。
- * @param path link の BASE_URL 以降
- * @param title タイトル
- * @param publishedAt 公開日時
- * @param region 地域名
- * @returns 候補
+ * Creates a candidate for verification.
+ * @param path The part of the link after BASE_URL
+ * @param title Title
+ * @param publishedAt Publication time
+ * @param region Region name
+ * @returns Candidate
  */
 function makeCandidate(
   path: string,
@@ -89,10 +89,10 @@ function makeCandidate(
 }
 
 /**
- * 検証用の取得元を作る。Error を渡すと取得に失敗する。
- * @param name 取得元の名前
- * @param result 返す候補、または投げる例外
- * @returns 取得元
+ * Creates a source for verification. Passing an Error makes the fetch fail.
+ * @param name Name of the source
+ * @param result Candidates to return, or the exception to throw
+ * @returns Source
  */
 function makeSource(name: string, result: Candidate[] | Error): SourceFetcher {
   return {
@@ -105,9 +105,9 @@ function makeSource(name: string, result: Candidate[] | Error): SourceFetcher {
 }
 
 /**
- * 判定で落とされる記事を 1 件返すだけの、成功する取得元を作る。
- * @param name 取得元の名前
- * @returns 取得元
+ * Creates a successful source that only returns one article that the classifier rejects.
+ * @param name Name of the source
+ * @returns Source
  */
 function makeFillerSource(name: string): SourceFetcher {
   return makeSource(name, [
@@ -116,27 +116,27 @@ function makeFillerSource(name: string): SourceFetcher {
 }
 
 /**
- * 文字列を辞書順に並べるための比較関数。
- * @param a 文字列
- * @param b 文字列
- * @returns 比較結果
+ * Comparison function that sorts strings in dictionary order.
+ * @param a String
+ * @param b String
+ * @returns Comparison result
  */
 function compareText(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
 /**
- * アイテムの link の一覧を返す。
- * @param items アイテム
- * @returns link の配列
+ * Returns the links of the items.
+ * @param items Items
+ * @returns Links
  */
 function links(items: Item[]): string[] {
   return items.map((item) => item.link)
 }
 
 /**
- * classifyShow の入力と期待値の組を検証する。
- * 誤検知と取りこぼしが見つかった記事は、再発を防ぐためにそのままケースにしている。
+ * Verifies pairs of classifyShow input and expected result.
+ * Articles for which a false positive or a miss was found are kept as cases to prevent regressions.
  */
 function verifyClassifier(): void {
   const longFiller = 'park news and updates for guests. '.repeat(40)
@@ -243,196 +243,202 @@ function verifyClassifier(): void {
   }
 
   const rejected: [string, string, string, string, string][] = [
-    ['R1', 'Holiday Parade Merchandise Guide', '', '', '運営・グッズ系の語'],
-    ['R2', 'Parade Schedule Update', '', '', '新規を示す語が無い'],
-    ['R3', 'Fireworks Show Returns This Summer', '', '', '毎年恒例の再開催'],
-    ['R4', '今年もハロウィーンのパレードが復活', '', '', '毎年恒例の再開催'],
+    [
+      'R1',
+      'Holiday Parade Merchandise Guide',
+      '',
+      '',
+      'operations/merchandise word',
+    ],
+    ['R2', 'Parade Schedule Update', '', '', 'no word for newness'],
+    ['R3', 'Fireworks Show Returns This Summer', '', '', 'annual return'],
+    ['R4', '今年もハロウィーンのパレードが復活', '', '', 'annual return'],
     [
       'R5',
       'Appointment of Independent Non-Executive Directors',
       '',
       '',
-      '演目語なし',
+      'no show word',
     ],
-    ['R6', '人事異動について', '', '', '演目語なし'],
+    ['R6', '人事異動について', '', '', 'no show word'],
     [
       'R7',
       'Indiana Jones et le Temple du Péril : fermeture pour rénovation',
       '',
       '',
-      '演目語なし',
+      'no show word',
     ],
     [
       'R8',
       'Park Update',
       '',
       `${longFiller}${longFiller}the new parade is great. ${longFiller}`,
-      '本文の奥での 1 回きりの付随的な言及',
+      'a single incidental mention deep in the body',
     ],
     [
       'R9',
       'Shanghai Disney Resort Rings in the New Year with Fireworks',
       '',
       '',
-      '`New Year` の new',
+      'the new of `New Year`',
     ],
     [
       'R10',
       'Celebrate',
       '',
       `${longFiller}new year's fireworks and new year decorations.`,
-      '`New Year` の new',
+      'the new of `New Year`',
     ],
     [
       'R11',
       'JAL、東京ディズニーランド®の新規イースターパレードに協賛',
       '',
       '',
-      '発表済みの演目への協賛の告知',
+      'sponsorship notice of an existing show',
     ],
     [
       'R12',
       '「東京ディズニーリゾート・スペシャルドローンショー“マジック・イン・ジ・エア”」実施のお知らせ',
       '',
       '',
-      '毎年恒例の実施と区別できないため採用しない',
+      'cannot be told apart from an annual event, so rejected',
     ],
     [
       'R13',
       'Fireworks Show Returns with New Finale',
       '',
       '',
-      '恒例の演目の再開催（細かな変更）',
+      'return of a recurring show (minor change)',
     ],
     [
       'R14',
       'Meet the Performer Who Brings His Heritage Center Stage',
       'A family tradition and a way to honor his heritage.',
       '',
-      '`stage` だけでは演目語としない',
+      '`stage` alone is not a show word',
     ],
     [
       'R16',
       'Why Halloween on the High Seas is My New Favorite Fall Tradition',
       '',
       '',
-      '演目語なし',
+      'no show word',
     ],
     [
       'R17',
       'Live in the Moment and Embrace a Spectacular Summer at Hong Kong Disneyland Resort',
       '',
       '',
-      '形容詞の spectacular は演目語としない',
+      'the adjective spectacular is not a show word',
     ],
     [
       'R15',
       'Hong Kong Disneyland Resort Announces New Pricing Structure',
       '',
       '',
-      '演目語なし',
+      'no show word',
     ],
     [
       'R18',
       'Parade Schedule Update',
       '',
       'The all-new parade debuts this summer.',
-      '運営系の語を含むタイトルは、本文に新規の根拠があっても採用しない',
+      'a title with an operations word is rejected even if the body has evidence of newness',
     ],
     [
       'R20',
       'New Parade Schedule Update',
       '',
       '',
-      '運営情報（新規が隣接していても）',
+      'operational information (even with an adjacent new word)',
     ],
     [
       'R21',
       'Brand-new parade merchandise now available',
       '',
       '',
-      'グッズ（新規が隣接していても）',
+      'merchandise (even with an adjacent new word)',
     ],
     [
       'R22',
       '【最新】ショー公演中止のお知らせ',
       '',
       '',
-      '中止（「最新」の新は新規ではない）',
+      'cancellation (the 新 of 最新 is not "new")',
     ],
     [
       'R23',
       'New Fireworks Show Returns This Summer',
       '',
       '',
-      '恒例の再開催（新規が隣接していても）',
+      'annual return (even with an adjacent new word)',
     ],
     [
       'R24',
       '今年も新パレードが復活',
       '',
       '',
-      '恒例の再開催（新規が隣接していても）',
+      'annual return (even with an adjacent new word)',
     ],
     [
       'R25',
       '更新情報',
       '',
       '最新情報 ショー',
-      '「最新」「更新」の新は新規ではない',
+      'the 新 of 最新 and 更新 is not "new"',
     ],
-    ['R26', 'ライブ配信の更新について', '', '', 'ライブ配信は演目ではない'],
+    ['R26', 'ライブ配信の更新について', '', '', 'live streaming is not a show'],
     [
       'R27',
       'Disney announces strong financial performance',
       '',
       '',
-      'performance は企業の業績にも使われるため、タイトルの演目語としない',
+      'performance also means business results, so it is not a title show word',
     ],
     [
       'R28',
       'Cast members launch concert for charity',
       '',
       '',
-      'concert は発表を示す語と組み合わせてもタイトルの演目語としない',
+      'concert is not a title show word even with an announcement word',
     ],
     [
       'R29',
       'Disney announces New Year concert times',
       '',
       '',
-      'New Year の new は新規ではない',
+      'the new of New Year is not "new"',
     ],
     [
       'R30',
       'Nouveautés du parc : drones',
       '',
       '',
-      '語の途中の nouveau は新規ではない',
+      'nouveau in the middle of a word is not "new"',
     ],
     [
       'R31',
       'Park update',
       '',
       'Enjoy new dining options and shows this season.',
-      '新規と演目が別の名詞句にまたがる',
+      '"new" and the show word span different noun phrases',
     ],
     [
       'R32',
       'Fireworks Show Reopens, Announced for Friday',
       '',
       '',
-      '運営再開のみで、新規の根拠が無い',
+      'only a reopening, no evidence of newness',
     ],
-    ['R33', '最新ショーのお知らせ', '', '', '「最新」の新は新規ではない'],
-    ['R34', '刷新されたショーの映像', '', '', '「刷新」の新は新規ではない'],
-    ['R35', '新作ライブ配信のお知らせ', '', '', 'ライブ配信は演目ではない'],
+    ['R33', '最新ショーのお知らせ', '', '', 'the 新 of 最新 is not "new"'],
+    ['R34', '刷新されたショーの映像', '', '', 'the 新 of 刷新 is not "new"'],
+    ['R35', '新作ライブ配信のお知らせ', '', '', 'live streaming is not a show'],
     [
       'R36',
       'お知らせ',
       '',
       `新規${'あ'.repeat(20)}ショー`,
-      '新規と演目が離れている（文中の間隔の上限）',
+      '"new" and the show word are too far apart (upper limit of the gap in a sentence)',
     ],
   ]
   for (const [name, title, summary, bodyText, reason] of rejected) {
@@ -449,7 +455,11 @@ function verifyClassifier(): void {
     summary: '',
     bodyText: `new ${'-'.repeat(40_000)}x nouveau ${'-'.repeat(40_000)}x`,
   })
-  check('R19 (ハイフンが長く続く本文でも二乗時間にならない)', dashes, false)
+  check(
+    'R19 (no quadratic time even with a body of long hyphen runs)',
+    dashes,
+    false
+  )
   check(
     'R19 elapsed time is under 1 second',
     performance.now() - startedAt < 1000,
@@ -458,18 +468,18 @@ function verifyClassifier(): void {
 }
 
 /**
- * 保存済みサンプルを読み込む（pnpm はリポジトリルートで実行する前提）。
- * @param name サンプルのファイル名
- * @returns ファイルの内容
+ * Reads a saved sample (assumes pnpm is run at the repository root).
+ * @param name File name of the sample
+ * @returns File content
  */
 function readFixture(name: string): string {
   return fs.readFileSync(`src/verify/fixtures/${name}`, 'utf8')
 }
 
 /**
- * 実際の記事に人が付けた正解ラベルと、classifyShow の判定が一致することを検証する。
- * 新作のショー・パレード等の告知を正例、協賛・毎年恒例・運営・企業情報・価格などを負例としている。
- * ルールの調整に使った記事を含むため、未知の記事に対する精度を保証するものではなく、退行の検知に使う。
+ * Verifies that classifyShow agrees with the ground-truth labels that a person gave to real articles.
+ * Announcements of new shows and parades are positive; sponsorship, annual events, operations, corporate information, pricing and the like are negative.
+ * The corpus includes articles used to tune the rules, so it does not guarantee accuracy on unseen articles; it is for detecting regressions.
  */
 function verifyLabeledCorpus(): void {
   const items = JSON.parse(readFixture('classifier-corpus.json')) as {
@@ -497,8 +507,8 @@ function verifyLabeledCorpus(): void {
 }
 
 /**
- * 各パーサーが、サンプルから独立に数えた件数の候補を返すことを検証する。
- * 期待件数は、サンプルの `<item>` と `li[entrydate]` を別途数えた値。
+ * Verifies that each parser returns as many candidates as were counted independently from the samples.
+ * The expected counts are the numbers of `<item>` and `li[entrydate]` in the samples, counted separately.
  */
 function verifyParsers(): void {
   const dpbXml = readFixture('dpb.xml')
@@ -569,7 +579,7 @@ function verifyParsers(): void {
 }
 
 /**
- * mergeItems の初回の除外、前回アイテムの引き継ぎ、識別子の正規化、整列を検証する。
+ * Verifies mergeItems: exclusion of old articles on the first run, carry-over of previous items, identifier normalization and sorting.
  */
 function verifyMerge(): void {
   const current = [
@@ -635,7 +645,7 @@ function verifyMerge(): void {
 }
 
 /**
- * 前回フィードのパースが、`<channel>` 内の `<item>` と、旧形式（`<rss>` 直下の `<item>`）の両方を読めることを検証する。
+ * Verifies that parsing the previous feed reads both `<item>` inside `<channel>` and the legacy format (`<item>` directly under `<rss>`).
  */
 function verifyPreviousFeed(): void {
   const inChannel =
@@ -678,17 +688,17 @@ function verifyPreviousFeed(): void {
 }
 
 /**
- * 値のない属性（例: `<guid isPermaLink>`）を持つ開始タグがあるかを返す。
- * @param xml XML 文字列
- * @returns 値のない属性がある場合は true
+ * Returns whether there is a start tag with an attribute without a value (e.g. `<guid isPermaLink>`).
+ * @param xml XML string
+ * @returns true if there is an attribute without a value
  */
 function hasBareAttribute(xml: string): boolean {
   return /<[A-Za-z][\w:.-]*(?:\s+[\w:.-]+)+\s*>/.test(xml)
 }
 
 /**
- * collectFrom が返したアイテムから生成した RSS に、値のない属性が無いことを検証する。
- * main.ts と同じオプションの XMLBuilder で出力し、前回フィードとして読み戻せることも確認する。
+ * Verifies that the RSS generated from the items returned by collectFrom has no attribute without a value.
+ * The RSS is written by an XMLBuilder with the same options as main.ts, and it is also checked that it can be read back as a previous feed.
  */
 async function verifyOutputXml(): Promise<void> {
   const service = new DisneyParksNewShows()
@@ -730,7 +740,7 @@ async function verifyOutputXml(): Promise<void> {
 }
 
 /**
- * collectFrom の項目変換、取得元の失敗の分離、削除記事検出との関係を検証する。
+ * Verifies collectFrom: item conversion, isolation of failing sources and the relation to deleted-article detection.
  */
 async function verifyCollect(): Promise<void> {
   const service = new DisneyParksNewShows()
@@ -852,7 +862,7 @@ async function verifyCollect(): Promise<void> {
 }
 
 /**
- * 検証を実行し、1 件でも失敗した場合は終了コードを非 0 にする。
+ * Runs the verification and sets a non-zero exit code if any case fails.
  */
 async function main(): Promise<void> {
   verifyClassifier()

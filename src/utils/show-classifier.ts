@@ -1,72 +1,72 @@
 /**
- * ショー・パレード判定への入力
+ * Input of the show/parade classification
  */
 export interface ClassifyInput {
-  /** 公式記事の原文タイトル */
+  /** Original title of the official article */
   title: string
-  /** 概要（無い場合は空文字） */
+  /** Summary (empty string if none) */
   summary: string
-  /** 本文のプレーンテキスト（無い場合は空文字） */
+  /** Plain text of the body (empty string if none) */
   bodyText: string
 }
 
-/** タイトルの判定にも使う、曖昧さの少ない演目を表す語（英語） */
+/** Unambiguous words for a show (English); also used for title matching */
 const STRONG_SHOW_EN = `(?:shows?|parades?|cavalcades?|fireworks|nighttime spectaculars?|night spectaculars?|projection(?: mapping| shows?)?|drone shows?|light shows?|musicals?|theat(?:er|re) shows?)`
 
-/** 演目を表す語（英語）。`performance` は企業の業績にも使われるため、タイトルの判定には使わない */
+/** Words for a show (English). `performance` also means business results, so it is not used for title matching */
 const SHOW_EN = `(?:${STRONG_SHOW_EN}|concerts?|performances?)`
 
-/** 新規を表す語（英語）。`New Year` の new は含めない */
+/** Words for "new" (English). The "new" of `New Year` is excluded */
 const NEW_EN = String.raw`(?:all-new|brand-new|new(?!\s+years?(?![a-z0-9]))|first-ever|never-before-seen)`
 
-/** 演目を表す語（フランス語。アクセント除去後） */
+/** Words for a show (French, after accent removal) */
 const SHOW_FR = `(?:spectacles?|defiles?|parades?|cavalcades?|feux d'artifice|shows?|projections?|drones?)`
 
-/** 新規を表す語（フランス語。アクセント除去後） */
+/** Words for "new" (French, after accent removal) */
 const NEW_FR = `(?:nouveaux?|nouvelles?|inedit(?:e|s|es)?)`
 
-/** 演目を表す語（日本語）。`ライブ配信` は演目ではない */
+/** Words for a show (Japanese). `ライブ配信` (live streaming) is not a show */
 const SHOW_JA = `(?:ショー|パレード|花火|プロジェクション|ミュージカル|ライブ(?!配信)|エンターテイメント|エンターテインメント)`
 
-/** 新規を表す語（日本語）。`最新`・`更新` などの「新」は含めない */
+/** Words for "new" (Japanese). The 新 of `最新` or `更新` is excluded */
 const NEW_JA = `(?<![最更刷改])(?:新規|新作|新しい|新たな|新(?=[ァ-ヶー]))|初(?:登場|披露|公演|めて)`
 
-/** 演目の開始・初披露を表す語（日本語） */
+/** Words for the start or premiere of a show (Japanese) */
 const START_JA = `(?:スタート|登場|初披露|お披露目|デビュー|開幕|初公演)`
 
-/** 本文の冒頭として扱う文字数（付随的な言及ではなく、記事の主題かを見分ける） */
+/** Number of leading body characters treated as the lead (to tell the article's subject from incidental mentions) */
 const LEAD_LENGTH = 700
 
-/** 冒頭に無い場合に、記事の主題とみなす本文全体での言及回数 */
+/** Number of mentions in the whole body that makes it the article's subject when the lead has none */
 const MIN_MENTIONS = 2
 
 /**
- * 語の区切り（英語・フランス語）。
- * 語を構成する文字 `[a-z0-9'&-]` と重ならないようにする。重なると、ハイフンが続く入力で分割の組み合わせが二乗で増える。
+ * Word separator (English and French).
+ * Must not overlap the word characters `[a-z0-9'&-]`; otherwise the number of ways to split input with consecutive hyphens grows quadratically.
  */
 const SEP = String.raw`[\s,:"“”‘’]+`
 
-/** 別の名詞句に移ることを示す並列・付随の語（英語・フランス語）。語の間には許さない。演目名に含まれる `in`・`of` は許す */
+/** Coordinating or accompanying words that start another noun phrase (English and French). Not allowed between words; `in` and `of` inside show names are allowed */
 const BREAK_WORD = `(?:and|or|plus|with|but|et|ou|avec)(?![a-z0-9'&-])`
 
-/** 語の間に許す単語数（英語・フランス語）。別の名詞句にまたがる場合は一致させない */
+/** Up to three words allowed in between (English and French). Does not match across another noun phrase */
 const WORDS = `(?:(?!${BREAK_WORD})[a-z0-9'&-]+${SEP}){0,3}?`
 
-/** 文の区切りを越えない範囲（日本語） */
+/** Any characters up to the sentence end (Japanese) */
 const JA_GAP = String.raw`[^。\n]`
 
 /**
- * 全出現箇所を数えられるよう、グローバルフラグ付きの正規表現を作る。
- * @param source 正規表現のソース
- * @returns グローバルな正規表現
+ * Creates a regular expression with the global flag so that every occurrence can be counted.
+ * @param source Regular expression source
+ * @returns Global regular expression
  */
 function globalPattern(source: string): RegExp {
   return new RegExp(source, 'g')
 }
 
 /**
- * 演目の新規発表とみなす、文中の「新規 + 演目」「演目 + 初披露」の形。
- * 「新規」と「演目」が離れて出現するだけでは一致させない（長い本文では、どの語も偶然に近接するため）。
+ * Phrases in a sentence that count as an announcement of a new show: "new + show" or "show + debut".
+ * A "new" word and a show word merely appearing apart do not match (in a long body any words happen to be close).
  */
 const NEW_SHOW_PATTERNS: RegExp[] = [
   globalPattern(
@@ -81,7 +81,7 @@ const NEW_SHOW_PATTERNS: RegExp[] = [
   globalPattern(`${SHOW_JA}${JA_GAP}{0,30}?${START_JA}`),
 ]
 
-/** タイトルに演目語があるときに、新規の発表とみなす語（演目語と隣接していなくてよい） */
+/** Words that mark a new announcement when the title has a show word (need not be adjacent to it) */
 const TITLE_CUE = new RegExp(
   [
     String.raw`(?<![a-z0-9])(?:all-new|brand-new|new(?!\s+years?(?![a-z0-9]))|first-ever|debut(?:s|ing)?|premiere[sd]?|unveil(?:s|ed|ing)?|introduc\w*|announce[sd]?|launch(?:es|ed)?|present(?:s|ing)?|arrives?|coming (?:to|soon|this|next|in))(?![a-z0-9])`,
@@ -91,32 +91,32 @@ const TITLE_CUE = new RegExp(
   ].join('|')
 )
 
-/** 演目語（タイトル用）。隣接を求めないため、曖昧な語は含めない */
+/** Show words for titles. Adjacency is not required, so ambiguous words are excluded */
 const TITLE_SHOW = new RegExp(
   `(?<![a-z0-9])${STRONG_SHOW_EN}(?![a-z0-9])|(?<![a-z0-9])${SHOW_FR}(?![a-z0-9])|${SHOW_JA}`
 )
 
-/** 発表済みの演目への協賛・提供の告知を示す語。新規が隣接していても新作の発表ではない */
+/** Words for a sponsorship notice of an existing show. Not a new-show announcement even when a "new" word is adjacent */
 const SPONSOR_TITLE = /(?<![a-z0-9])sponsor\w*|協賛|提供/
 
-/** 運営情報・グッズなど、新作の発表ではない記事を示す語。新規が隣接していても新作の発表ではない */
+/** Words for operational information, merchandise and similar. Not a new-show announcement even when a "new" word is adjacent */
 const OPERATION_TITLE =
   /(?<![a-z0-9])(?:closures?|schedules?|merchandise|gifts?|recipes?)(?![a-z0-9])|休止|中止|グッズ|fermeture/
 
-/** 毎年恒例の再開催を示す語。新規が隣接していても新作の発表ではない */
+/** Words for an annual return. Not a new-show announcement even when a "new" word is adjacent */
 const RECURRING_TITLE =
   /(?<![a-z0-9])(?:returns?|returning|back|annual)(?![a-z0-9])|復活|今年も|年度も|revient|retour/
 
-/** 運営再開を示す語。タイトルに「新規 + 演目」の形があれば（再開と同時の新作として）新作の発表を優先する */
+/** Words for a reopening. A "new + show" phrase in the title still wins (a new show announced together with the reopening) */
 const REOPEN_TITLE = /(?<![a-z0-9])reopen\w*|再開|reouverture/
 
 /**
- * 照合用に文字列を正規化する。
- * 全角・半角を統一し、ラテン文字のアクセント記号を除去して小文字化する。
- * 日本語の濁点（結合文字）は、除去せずに再結合して残す。
- * 商標記号（™・℠）は NFKD で `TM`・`SM` の文字になり、語の途中に挟まって一致を妨げるため、先に除去する。
- * @param text 対象文字列
- * @returns 正規化後の文字列
+ * Normalizes a string for matching.
+ * Unifies full-width and half-width forms, removes accents of Latin letters and lowercases.
+ * Japanese dakuten (combining characters) are recomposed, not removed.
+ * Trademark signs (™, ℠) become `TM` and `SM` under NFKD and would break matches in the middle of a word, so they are removed first.
+ * @param text Target string
+ * @returns Normalized string
  */
 function normalize(text: string): string {
   return text
@@ -129,9 +129,9 @@ function normalize(text: string): string {
 }
 
 /**
- * 「新規 + 演目」「演目 + 初披露」の形に一致した文字列をすべて返す。
- * @param text 正規化済みの対象文字列
- * @returns 一致した文字列の配列
+ * Returns every string that matches a "new + show" or "show + debut" phrase.
+ * @param text Normalized target string
+ * @returns Matched strings
  */
 function findMatches(text: string): string[] {
   return NEW_SHOW_PATTERNS.flatMap((pattern) =>
@@ -143,17 +143,17 @@ function findMatches(text: string): string[] {
 }
 
 /**
- * 新作のショー・パレード等の発表とみなした根拠の文字列を返す。
+ * Returns the matched string that is the evidence for a new show or parade announcement.
  *
- * 次の順に判定する。
- * 1. タイトルが協賛・提供の告知、運営情報・グッズ、毎年恒例の再開催を示す場合は採用しない。
- * 2. タイトル自体に「新規 + 演目」の形がある場合は採用する（運営再開を示す語より優先する）。
- * 3. 次のいずれかを満たし、かつタイトルが運営再開を示さない場合に採用する。
- *    - タイトルに演目語と、新規・発表を示す語がある。
- *    - 概要と本文の冒頭に「新規 + 演目」の形がある。
- *    - 本文全体に「新規 + 演目」の形が複数回ある（記事が繰り返し新作を扱っている）。
- * @param input タイトル・概要・本文
- * @returns 根拠として一致した文字列（正規化後）。採用しない場合は undefined
+ * Rules, in order:
+ * 1. Reject if the title is a sponsorship notice, operational information or merchandise, or an annual return.
+ * 2. Accept if the title itself has a "new + show" phrase (this wins over a reopening word).
+ * 3. Otherwise accept if the title does not indicate a reopening and one of these holds:
+ *    - The title has a show word and a word for newness or announcement.
+ *    - The summary and the lead of the body have a "new + show" phrase.
+ *    - The whole body has a "new + show" phrase several times (the article keeps dealing with a new show).
+ * @param input Title, summary and body
+ * @returns The matched string (normalized) as evidence, or undefined if rejected
  */
 export function findNewShowEvidence(input: ClassifyInput): string | undefined {
   const title = normalize(input.title)
@@ -187,10 +187,10 @@ export function findNewShowEvidence(input: ClassifyInput): string | undefined {
 }
 
 /**
- * 新作のショー・パレード等の発表記事かどうかをルールベースで判定する。
- * 判定の詳細は {@link findNewShowEvidence} を参照。
- * @param input タイトル・概要・本文
- * @returns 採用する場合は true
+ * Classifies by rules whether an article announces a new show, parade or similar.
+ * See {@link findNewShowEvidence} for the details.
+ * @param input Title, summary and body
+ * @returns true if the article is accepted
  */
 export function classifyShow(input: ClassifyInput): boolean {
   return findNewShowEvidence(input) !== undefined

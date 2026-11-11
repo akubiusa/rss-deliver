@@ -27,12 +27,12 @@ import { getPreviousFeed } from './utils/previous-feed'
 import { Item } from './model/collect-result'
 
 /**
- * サービスの RSS を生成して出力する
+ * Generates and writes the RSS file of a service.
  *
- * collect() はここで 1 回だけ実行し、削除記事検出にも同じ取得結果を使えるよう返す。
+ * collect() runs only once here; the collected items are returned so that deleted-article detection can reuse them.
  *
- * @param service 対象サービス
- * @returns 取得結果のアイテム（pubDate 処理前）。取得に失敗した場合は undefined
+ * @param service Target service
+ * @returns Collected items before pubDate processing, or undefined if collection failed
  */
 async function generateRSSService(
   service: BaseService
@@ -51,7 +51,6 @@ async function generateRSSService(
     return undefined
   }
 
-  // pubDateを処理
   const processedItems = await service.processPubDates(collect.items)
 
   const object = {
@@ -86,7 +85,6 @@ async function generateRSS() {
   const logger = Logger.configure('main.generateRSS')
   logger.info('✨ Generating RSS...')
 
-  // 削除記事履歴を取得
   let deletedHistory = await fetchDeletedArticlesHistory()
 
   const services: BaseService[] = [
@@ -105,20 +103,18 @@ async function generateRSS() {
     new DisneyParksNewShows(),
   ]
 
-  // 各サービスの削除記事を検出してまとめる
+  // Deleted articles detected across all services
   const allDeletedArticles: DeletedArticle[] = []
 
   const promises: Promise<void>[] = services.map(async (service) => {
     try {
       const serviceName = service.constructor.name
 
-      // 前回のフィードを取得
       const previousItems = await getPreviousFeed(serviceName)
 
-      // 新しいフィードを生成（RSS 生成に使った取得結果を削除記事検出にも使う）
       const collectedItems = await generateRSSService(service)
 
-      // 削除記事を検出（取得に成功し、前回フィードが存在する場合のみ）
+      // Detect deleted articles only if collection succeeded and a previous feed exists
       if (collectedItems) {
         if (previousItems.length > 0) {
           const deletedArticles = detectDeletedArticles(
@@ -150,7 +146,6 @@ async function generateRSS() {
 
   await Promise.all(promises)
 
-  // 削除記事履歴を更新
   logger.info(
     `📊 Total deleted articles detected: ${allDeletedArticles.length}`
   )
@@ -167,7 +162,7 @@ async function generateRSS() {
   } else {
     logger.info('📄 No deleted articles detected, creating empty history file')
 
-    // 削除記事がない場合でも、空の履歴ファイルを作成
+    // Create an empty history file even if nothing was deleted, but only if none exists yet
     if (!deletedHistory) {
       deletedHistory = {
         version: '1.0',

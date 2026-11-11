@@ -5,7 +5,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-/** デフォルトで除去するセレクタのリスト */
+/** Selectors removed by default */
 const DEFAULT_REMOVE_SELECTORS = [
   'header',
   'footer',
@@ -23,10 +23,10 @@ const DEFAULT_REMOVE_SELECTORS = [
   'noscript',
 ]
 
-/** デフォルトのメインコンテンツセレクタ */
+/** Default selector of the main content */
 const DEFAULT_CONTENT_SELECTOR = '#mainArea'
 
-/** デフォルトの HTTP リクエストヘッダー */
+/** Default HTTP request headers (imitating a browser) */
 const DEFAULT_HEADERS: Record<string, string> = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
@@ -40,16 +40,16 @@ const DEFAULT_HEADERS: Record<string, string> = {
   DNT: '1',
 }
 
-/** キャッシュの有効期限（ミリ秒）。デフォルトは 7 日 */
+/** Default cache lifetime in milliseconds (7 days) */
 const DEFAULT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-/** キャッシュのベースディレクトリ */
+/** Base directory of the cache */
 const ARTICLE_CACHE_BASE_DIR = '.article-cache'
 
 /**
- * クラス名をケバブケースに変換する。
- * @param name クラス名 (例: TdrUpdates)
- * @returns ケバブケースの文字列 (例: tdr-updates)
+ * Converts a class name to kebab-case.
+ * @param name Class name (e.g. TdrUpdates)
+ * @returns Kebab-case string (e.g. tdr-updates)
  */
 function toKebabCase(name: string): string {
   return name
@@ -58,23 +58,23 @@ function toKebabCase(name: string): string {
     .toLowerCase()
 }
 
-/** キャッシュデータの型定義 */
+/** Shape of a cache file */
 interface ArticleCacheData {
-  /** 記事の URL */
+  /** Article URL */
   url: string
-  /** 抽出したコンテンツ HTML */
+  /** Extracted content HTML */
   content: string
-  /** フェッチ日時 (ISO 8601) */
+  /** Fetch time (ISO 8601) */
   fetchedAt: string
 }
 
 /**
- * 記事ページの HTML からメインコンテンツを抽出する。
- * ヘッダー・フッター・ナビゲーション等を除去してメインエリアの HTML を返す。
- * @param html ページの HTML 文字列
- * @param contentSelector メインコンテンツのセレクタ (デフォルト: '#mainArea')
- * @param removeSelectors 除去するセレクタのリスト (デフォルト: 標準的なノイズ要素)
- * @returns 抽出したコンテンツ HTML
+ * Extracts the main content from the HTML of an article page.
+ * Removes the header, footer, navigation and similar, and returns the HTML of the main area (the whole body if the selector matches nothing).
+ * @param html HTML of the page
+ * @param contentSelector Selector of the main content (default: '#mainArea')
+ * @param removeSelectors Selectors to remove (default: common noise elements)
+ * @returns Extracted content HTML
  */
 export function extractArticleContent(
   html: string,
@@ -83,12 +83,10 @@ export function extractArticleContent(
 ): string {
   const $ = cheerio.load(html)
 
-  // ナビゲーション・ヘッダー・フッターなどのノイズ要素を除去する
   for (const selector of removeSelectors) {
     $(selector).remove()
   }
 
-  // メインコンテンツを返す
   const mainArea = $(contentSelector)
   return mainArea.length > 0
     ? (mainArea.html() ?? '')
@@ -96,19 +94,20 @@ export function extractArticleContent(
 }
 
 /**
- * 記事ページのコンテンツをキャッシュ付きでフェッチする。
- * キャッシュが存在し有効期限内であればキャッシュから返し、なければフェッチしてキャッシュに保存する。
- * 空のコンテンツはキャッシュしない（次回フェッチで再取得できるようにする）。
- * キャッシュディレクトリは `.article-cache/<サービスクラス名のケバブケース>` に自動決定される。
- * @param url 記事ページの URL
- * @param service キャッシュディレクトリの導出に使用するサービスインスタンス
- * @param logger ロガー
- * @param options オプション
- * @param options.headers HTTP リクエストヘッダー (デフォルト: 標準ブラウザヘッダー)
- * @param options.contentSelector メインコンテンツのセレクタ (デフォルト: '#mainArea')
- * @param options.removeSelectors 除去するセレクタのリスト (デフォルト: 標準的なノイズ要素)
- * @param options.cacheTtlMs キャッシュの有効期限（ミリ秒、デフォルト: 7 日）
- * @returns 記事ページのメインコンテンツ HTML
+ * Fetches the content of an article page with an on-disk cache.
+ * Returns the cached content if it exists and has not expired; otherwise fetches the page and stores the result.
+ * Empty content is not cached so that the next run fetches it again.
+ * The cache directory is `.article-cache/<kebab-case service class name>`.
+ * @param url URL of the article page
+ * @param service Service instance used to derive the cache directory
+ * @param logger Logger
+ * @param options Options
+ * @param options.headers HTTP request headers (default: browser-like headers)
+ * @param options.contentSelector Selector of the main content (default: '#mainArea')
+ * @param options.removeSelectors Selectors to remove (default: common noise elements)
+ * @param options.cacheTtlMs Cache lifetime in milliseconds (default: 7 days)
+ * @returns HTML of the main content of the article page
+ * @throws If the page responds with a status other than 200
  */
 export async function fetchArticleWithCache(
   url: string,
@@ -129,7 +128,6 @@ export async function fetchArticleWithCache(
   const cachePath = path.join(cacheDir, `${urlHash}.json`)
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS
 
-  // キャッシュが存在し有効期限内であればキャッシュから返す
   if (fs.existsSync(cachePath)) {
     try {
       const cached = JSON.parse(
@@ -137,23 +135,22 @@ export async function fetchArticleWithCache(
       ) as ArticleCacheData
       const cachedAt = new Date(cached.fetchedAt).getTime()
       if (Date.now() - cachedAt < cacheTtlMs) {
-        logger.info(`📦 記事キャッシュを使用: ${url}`)
+        logger.info(`📦 Using article cache: ${url}`)
         return cached.content
       }
-      logger.info(`⏰ 記事キャッシュが期限切れのため再フェッチ: ${url}`)
+      logger.info(`⏰ Article cache expired, re-fetching: ${url}`)
     } catch {
-      // 壊れたキャッシュは無視して再フェッチする
+      // Ignore a broken cache and fetch again
       logger.warn(`⚠️ Failed to read cache, re-fetching: ${cachePath}`)
       try {
         fs.unlinkSync(cachePath)
       } catch {
-        // 削除失敗は致命的ではないため無視する
+        // Failing to delete is not fatal
       }
     }
   }
 
-  // 記事ページをフェッチする
-  logger.info(`🌐 記事ページをフェッチ: ${url}`)
+  logger.info(`🌐 Fetching article page: ${url}`)
   const res = await fetch(url, {
     headers: options.headers ?? DEFAULT_HEADERS,
   })
@@ -167,13 +164,12 @@ export async function fetchArticleWithCache(
     options.removeSelectors
   )
 
-  // 空のコンテンツはキャッシュしない（次回フェッチで再取得できるようにする）
+  // Do not cache empty content so that the next run fetches it again
   if (!content.trim()) {
     logger.warn(`⚠️ Empty content extracted, skipping cache: ${url}`)
     return content
   }
 
-  // キャッシュディレクトリを作成してキャッシュに保存する
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true })
   }

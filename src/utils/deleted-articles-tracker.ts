@@ -21,25 +21,26 @@ interface RssItem {
   source?: string
 }
 
-// GitHub Pagesの履歴ファイルURL
+// URL of the history file on GitHub Pages
 const DELETED_ARTICLES_HISTORY_URL =
   'https://book000.github.io/rss-deliver/deleted-articles-history.json'
 
 /**
- * 記事の一意識別子を取得（既存のルールに従う）
+ * Returns the unique ID of an article: the guid text, else the link, else the title.
  */
 function getItemId(item: RssItem | Item): string {
   return (item.guid?.['#text'] ?? item.link) || item.title
 }
 
 /**
- * GitHub Pagesから削除記事履歴を取得
+ * Fetches the deleted-articles history from GitHub Pages.
+ * @returns The history, or null if it could not be fetched
  */
 export async function fetchDeletedArticlesHistory(): Promise<DeletedArticlesHistory | null> {
   const logger = Logger.configure('utils.fetchDeletedArticlesHistory')
 
   try {
-    // キャッシュバスターを追加
+    // Cache buster
     const res = await fetch(`${DELETED_ARTICLES_HISTORY_URL}?t=${Date.now()}`, {
       signal: AbortSignal.timeout(10_000),
     })
@@ -61,7 +62,11 @@ export async function fetchDeletedArticlesHistory(): Promise<DeletedArticlesHist
 }
 
 /**
- * 削除記事を検出
+ * Detects articles that were in the previous feed but are missing from the current one.
+ * @param previousItems Items of the previous feed
+ * @param currentItems Items collected in this run
+ * @param serviceName Service class name
+ * @returns Deleted articles
  */
 export function detectDeletedArticles(
   previousItems: RssItem[],
@@ -70,10 +75,8 @@ export function detectDeletedArticles(
 ): DeletedArticle[] {
   const logger = Logger.configure(`utils.detectDeletedArticles.${serviceName}`)
 
-  // 現在のフィードの記事IDセットを作成
   const currentIds = new Set(currentItems.map((item) => getItemId(item)))
 
-  // 前回のフィードにあって現在のフィードにない記事を削除記事として検出
   const deletedArticles = previousItems
     .filter((item) => !currentIds.has(getItemId(item)))
     .map((item) => ({
@@ -96,7 +99,7 @@ export function detectDeletedArticles(
 }
 
 /**
- * 削除記事履歴をクリーンアップ（30日以上古いものを削除）
+ * Removes history entries whose deletion was detected more than 30 days ago.
  */
 export function cleanupDeletedArticlesHistory(
   history: DeletedArticlesHistory
@@ -122,7 +125,10 @@ export function cleanupDeletedArticlesHistory(
 }
 
 /**
- * 削除記事履歴を更新
+ * Adds newly deleted articles to the history (skipping IDs already recorded) and cleans up old entries.
+ * @param currentHistory Current history, or null if there is none
+ * @param newDeletedArticles Articles detected as deleted in this run
+ * @returns Updated history
  */
 export function updateDeletedArticlesHistory(
   currentHistory: DeletedArticlesHistory | null,
@@ -130,7 +136,6 @@ export function updateDeletedArticlesHistory(
 ): DeletedArticlesHistory {
   const logger = Logger.configure('utils.updateDeletedArticlesHistory')
 
-  // 既存の履歴がない場合は新規作成
   if (!currentHistory) {
     logger.info('📄 Creating new deleted articles history')
     return {
@@ -140,12 +145,10 @@ export function updateDeletedArticlesHistory(
     }
   }
 
-  // 既存の記事IDセットを作成
   const existingIds = new Set(
     currentHistory.articles.map((article) => article.id)
   )
 
-  // 新しい削除記事のうち、まだ記録されていないものを追加
   const newArticles = newDeletedArticles.filter(
     (article) => !existingIds.has(article.id)
   )
@@ -162,12 +165,11 @@ export function updateDeletedArticlesHistory(
     articles: [...currentHistory.articles, ...newArticles],
   }
 
-  // 30日以上古い記事をクリーンアップ
   return cleanupDeletedArticlesHistory(updatedHistory)
 }
 
 /**
- * 削除記事履歴をファイルに保存
+ * Writes the history to `output/deleted-articles-history.json`.
  */
 export function saveDeletedArticlesHistory(
   history: DeletedArticlesHistory
@@ -188,7 +190,8 @@ export function saveDeletedArticlesHistory(
 }
 
 /**
- * 削除記事履歴からpubDateを取得
+ * Looks up the pubDate of an article in the history.
+ * @returns The pubDate, or undefined if the article is not in the history
  */
 export function getPubDateFromDeletedHistory(
   itemId: string,
