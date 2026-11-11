@@ -1,6 +1,7 @@
 import { BaseService } from '@/base-service'
 import CollectResult, { Item } from '@/model/collect-result'
 import ServiceInformation from '@/model/service-information'
+import { getItemId } from '@/utils/deleted-articles-tracker'
 import { loadPreviousFeed } from '@/utils/previous-feed'
 import { findNewShowEvidence } from '@/utils/show-classifier'
 import { Logger } from '@book000/node-utils'
@@ -233,12 +234,12 @@ function normalizeLink(link: string): string {
 }
 
 /**
- * Returns the identifier of an item: the guid text, else the link, else the title.
+ * Returns the identifier of an item (`getItemId`) with its link normalized.
  * @param item Item
  * @returns Normalized identifier
  */
 function getItemKey(item: Item): string {
-  return normalizeLink((item.guid?.['#text'] ?? item.link) || item.title)
+  return normalizeLink(getItemId(item))
 }
 
 /**
