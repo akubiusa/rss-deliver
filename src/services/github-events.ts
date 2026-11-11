@@ -5,17 +5,17 @@ import ServiceInformation from '@/model/service-information'
 import * as cheerio from 'cheerio'
 import ical, { VEvent, ParameterValue } from 'node-ical'
 
-/** ICS ファイルの URL */
+/** URL of the public Google Calendar ICS file */
 const ICS_URL =
   'https://calendar.google.com/calendar/ical/c_3d2f8eb9fd2c835a0d1c214386c9312d681ae2ddf456d2843bd7f0a73c770767%40group.calendar.google.com/public/basic.ics'
 
-/** GitHub イベントページの URL */
+/** URL of the GitHub events page */
 const EVENTS_PAGE_URL = 'https://resources.github.com/ja/events/'
 
 /**
- * ParameterValue から文字列値を取得する
- * @param value ParameterValue（文字列またはパラメータ付きオブジェクト）
- * @returns 文字列値。値がない場合は undefined
+ * Gets the string value of a ParameterValue.
+ * @param value A string or an object with parameters
+ * @returns The string value, or undefined if there is none
  */
 function getParameterValue(
   value: ParameterValue | undefined
@@ -24,9 +24,9 @@ function getParameterValue(
 }
 
 /**
- * ICS の DESCRIPTION（HTML）からイベントの URL を抽出する
- * @param description HTML 形式の説明文
- * @returns 抽出した URL。見つからない場合は undefined
+ * Extracts the event URL from the ICS DESCRIPTION (HTML).
+ * @param description Description in HTML
+ * @returns The first http(s) link, or undefined if none is found
  */
 function extractEventUrl(description: string): string | undefined {
   const $ = cheerio.load(description)
@@ -41,12 +41,12 @@ function extractEventUrl(description: string): string | undefined {
 }
 
 /**
- * GitHub イベント（ウェビナーなど）を Google Calendar の ICS から RSS として配信するサービス
+ * Delivers GitHub events (webinars, etc.) from a Google Calendar ICS file as RSS.
  */
 export default class GitHubEvents extends BaseService {
   /**
-   * サービス情報を返す
-   * @returns サービス情報
+   * Returns the feed metadata.
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -60,14 +60,13 @@ export default class GitHubEvents extends BaseService {
   }
 
   /**
-   * ICS ファイルから RSS アイテムを収集する
-   * @returns 収集結果
+   * Collects RSS items from the ICS file.
+   * @returns Collected items and status
    */
   async collect(): Promise<CollectResult> {
     const logger = Logger.configure('GitHubEvents.collect')
 
     try {
-      // ICS ファイルを取得
       const res = await fetch(ICS_URL)
       if (res.status !== 200) {
         logger.error(`❌ Failed to fetch ICS: ${res.status}`)
@@ -77,17 +76,14 @@ export default class GitHubEvents extends BaseService {
         }
       }
 
-      // ICS をパース
       const calendar = ical.sync.parseICS(await res.text())
 
-      // VEVENT のみ抽出
       const events = Object.values(calendar).filter(
         (component): component is VEvent => component?.type === 'VEVENT'
       )
 
       logger.info(`📅 Found ${events.length} events`)
 
-      // イベントを開始日時の降順に並び替え（最新順）
       const sortedEvents = events.toSorted((a, b) => {
         const aTime = a.start instanceof Date ? a.start.getTime() : 0
         const bTime = b.start instanceof Date ? b.start.getTime() : 0
@@ -99,20 +95,17 @@ export default class GitHubEvents extends BaseService {
         const title = getParameterValue(event.summary) ?? '(タイトルなし)'
         const descriptionRaw = getParameterValue(event.description)
 
-        // イベントの詳細 URL を取得（description から抽出、なければイベントページ URL）
         const eventUrl =
           event.url ??
           (descriptionRaw ? extractEventUrl(descriptionRaw) : undefined) ??
           EVENTS_PAGE_URL
 
-        // pubDate はイベント開始日時
+        // pubDate is the event start time
         const pubDate =
           event.start instanceof Date ? event.start.toUTCString() : undefined
 
-        // content:encoded に詳細情報を組み立てる
         const contentParts: string[] = []
 
-        // 開始・終了日時
         if (event.start instanceof Date) {
           const startStr = event.start.toLocaleString('ja-JP', {
             timeZone: 'Asia/Tokyo',
@@ -136,18 +129,15 @@ export default class GitHubEvents extends BaseService {
           contentParts.push(`<p>終了: ${endStr}</p>`)
         }
 
-        // 場所
         const location = getParameterValue(event.location)
         if (location) {
           contentParts.push(`<p>場所: ${location}</p>`)
         }
 
-        // 説明
         if (descriptionRaw) {
           contentParts.push(`<hr />${descriptionRaw}`)
         }
 
-        // イベントページへのリンク
         contentParts.push(
           `<p><a href="${EVENTS_PAGE_URL}">GitHub イベント一覧ページ</a></p>`
         )

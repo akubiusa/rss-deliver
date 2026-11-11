@@ -69,8 +69,8 @@ interface ZeenChangelogResponse {
 
 export default class ZennChangelog extends BaseService {
   /**
-   * サービス情報を返す。
-   * @returns サービスのタイトル・リンク・説明などのメタ情報
+   * Returns the feed metadata.
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -89,9 +89,9 @@ export default class ZennChangelog extends BaseService {
   }
 
   /**
-   * Zenn Changelog の変更履歴を収集する。
-   * 各記事ページのコンテンツはキャッシュ付きでフェッチし、失敗時は RSS の description をフォールバックとして使用する。
-   * @returns 収集結果（アイテムリストとステータス）
+   * Collects the Zenn Changelog entries.
+   * Article pages are fetched through the on-disk article cache; on failure the RSS description is used as a fallback.
+   * @returns Collected items and status
    */
   async collect(): Promise<CollectResult> {
     const logger = Logger.configure('ZennChangelog::collect')
@@ -108,7 +108,6 @@ export default class ZennChangelog extends BaseService {
     const oldFeed: ZeenChangelogResponse = parser.parse(await res.text())
     const items: Item[] = []
     for (const item of oldFeed.rss.channel.item.slice(0, 10)) {
-      // 直近の 10 件を取得
       const link: string = item.link
       const itemUrl = `https://info.zenn.dev/${link.split('/').pop() ?? ''}`
 

@@ -7,8 +7,8 @@ import * as cheerio from 'cheerio'
 
 export default class FF14LodestoneNews extends BaseService {
   /**
-   * サービス情報を返す。
-   * @returns サービスのタイトル・リンク・説明などのメタ情報
+   * Returns the feed metadata.
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -22,9 +22,9 @@ export default class FF14LodestoneNews extends BaseService {
   }
 
   /**
-   * FF14 Lodestone のニュース一覧を収集する。
-   * 各記事ページのコンテンツはキャッシュ付きでフェッチして返す。
-   * @returns 収集結果（アイテムリストとステータス）
+   * Collects the FF14 Lodestone news list.
+   * The content of each article page is fetched through the on-disk article cache.
+   * @returns Collected items and status
    */
   async collect(): Promise<CollectResult> {
     const logger = Logger.configure('FF14LodestoneNews::collect')
@@ -43,14 +43,7 @@ export default class FF14LodestoneNews extends BaseService {
 
     const $ = cheerio.load(data)
     const items: Item[] = []
-    /*
-      -: 最新
-      1: トピックス
-      2: お知らせ
-      3: メンテナンス
-      4: アップデート
-      5: 障害情報
-    */
+    // nth-child(2) of the news boxes is the notices box
     const news = $(
       '#toptabchanger_newsarea > div.toptabchanger_newsbox:nth-child(2) li.news__list a'
     )

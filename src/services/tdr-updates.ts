@@ -14,8 +14,8 @@ export default class TdrUpdates extends BaseService {
     'https://www.tokyodisneyresort.jp/tdr/news/update.html'
 
   /**
-   * サービス情報を返す。
-   * @returns サービスのタイトル・リンク・説明などのメタ情報
+   * Returns the feed metadata.
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -28,9 +28,9 @@ export default class TdrUpdates extends BaseService {
   }
 
   /**
-   * 東京ディズニーリゾートのサイト更新情報を収集する。
-   * 各記事ページのコンテンツはキャッシュ付きでフェッチし、PDF の場合は画像化して返す。
-   * @returns 収集結果（アイテムリストとステータス）
+   * Collects the site update notices of Tokyo Disney Resort.
+   * Article pages are fetched through the on-disk article cache; PDFs are rendered to PNG images.
+   * @returns Collected items and status
    */
   async collect(): Promise<CollectResult> {
     const logger = Logger.configure('TdrUpdates::collect')
@@ -67,20 +67,16 @@ export default class TdrUpdates extends BaseService {
 
       logger.info(`📃 ${title} ${url} (${year}/${month}/${day})`)
 
-      // カテゴリタグ（span.iconTag）を取得する
       const category = anchor.find('span.iconTag').text().trim()
 
       let content: string
       if (url.endsWith('.pdf')) {
-        // PDF の場合は各ページを画像化してコンテンツとして設定する
         const pdfUrls = await this.pdf2png(url)
         content = pdfUrls.map((pdfUrl) => `<img src="${pdfUrl}">`).join('<br>')
       } else {
-        // HTML ページの場合は記事ページをフェッチしてコンテンツとして設定する
         try {
           content = await fetchArticleWithCache(url, this, logger)
         } catch (error) {
-          // フェッチに失敗した場合はリストページの説明文をフォールバックとして使用する
           logger.error(
             `Failed to fetch article, using fallback: ${url}`,
             error as Error

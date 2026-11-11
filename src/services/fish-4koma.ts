@@ -66,7 +66,6 @@ export default class Fish4Koma extends BaseService {
       const itemUrl = rssItem.link
       logger.info(`📃 Processing: ${rssItem.title} - ${itemUrl}`)
 
-      // 記事の詳細ページを取得
       const itemRes = await fetch(itemUrl)
       if (itemRes.status !== 200) {
         logger.warn(`❗ Failed to fetch item page (${itemRes.status})`)
@@ -75,7 +74,6 @@ export default class Fish4Koma extends BaseService {
 
       const $ = cheerio.load(await itemRes.text())
 
-      // 記事本文から画像を抽出
       const articleBody = $('.article-body-inner')
       const images: string[] = []
 
@@ -84,12 +82,11 @@ export default class Fish4Koma extends BaseService {
         if (!src?.includes('livedoor.blogimg.jp')) {
           return
         }
-        // サムネイルの場合、元画像URLに変換
+        // Convert a thumbnail URL (-s suffix) to the original image URL
         const fullImageUrl = src.replace(/-s$/, '')
         images.push(fullImageUrl)
       })
 
-      // リンクから元画像を取得
       articleBody.find('a').each((_, element) => {
         const href = $(element).attr('href')
         if (
@@ -107,7 +104,6 @@ export default class Fish4Koma extends BaseService {
         continue
       }
 
-      // 画像を保存（最大の画像のみ）
       if (!fs.existsSync('output/fish4koma/')) {
         fs.mkdirSync('output/fish4koma/', { recursive: true })
       }
@@ -115,7 +111,6 @@ export default class Fish4Koma extends BaseService {
       let largestImageUrl: string | null = null
       let maxImageSize = 0
 
-      // 最大サイズの画像を特定
       for (const imageUrl of images) {
         try {
           const imageRes = await fetch(imageUrl)
@@ -146,7 +141,6 @@ export default class Fish4Koma extends BaseService {
           if (imageRes2.ok) {
             const buffer = Buffer.from(await imageRes2.arrayBuffer())
 
-            // 画像をトリミングして余白を追加
             const processedBuffer = await sharp(buffer)
               .trim()
               .extend({

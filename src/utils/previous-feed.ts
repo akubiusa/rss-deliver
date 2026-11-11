@@ -30,27 +30,26 @@ type PreviousFeedCache = Record<
   | undefined
 >
 
-// キャッシュを保持して、同じセッション内での重複取得を避ける
 const feedCache: PreviousFeedCache = {}
 
 /**
- * 前回フィードの取得結果
+ * Result of loading the previous feed
  */
 export interface PreviousFeedResult {
   /**
-   * ok: 取得できた / not-found: 404（未公開） / error: 通信エラー・想定外の応答・パース失敗
+   * ok: loaded / not-found: 404 (not published yet) / error: network error, unexpected response or parse failure
    */
   status: 'ok' | 'not-found' | 'error'
-  /** 前回のアイテム（ok 以外は空配列） */
+  /** Previous items (empty unless status is ok) */
   items: RssItem[]
 }
 
 /**
- * 前回フィードの XML からアイテムを取り出す。
- * `<item>` は `<channel>` の中にあるが、`<channel>` の外（`<rss>` 直下）に出力していた旧形式も読む。
- * @param xml 前回フィードの XML
- * @returns 前回のアイテム
- * @throws RSS として解釈できない場合
+ * Extracts the items from the XML of the previous feed.
+ * `<item>` is inside `<channel>`, but the legacy format that put it outside `<channel>` (directly under `<rss>`) is also read.
+ * @param xml XML of the previous feed
+ * @returns Previous items
+ * @throws If the XML is not an RSS document
  */
 export function parsePreviousFeed(xml: string): RssItem[] {
   const parser = new XMLParser({
@@ -69,31 +68,30 @@ export function parsePreviousFeed(xml: string): RssItem[] {
   }
   const items = parsed.rss.channel?.item ?? parsed.rss.item ?? []
 
-  // 配列でない場合（アイテムが1つだけの場合）は配列に変換
+  // A single item is parsed as an object, not an array
   return Array.isArray(items) ? items : [items]
 }
 
 /**
- * GitHub Pagesから公開されているRSSフィードを取得し、取得の成否を区別して返す
- * @param serviceName サービス名
- * @returns 取得結果
+ * Fetches the RSS feed published on GitHub Pages and reports whether it succeeded.
+ * Successful results are cached in process for one hour.
+ * @param serviceName Service class name (the feed is `<serviceName>.xml`)
+ * @returns Load result
  */
 export async function loadPreviousFeed(
   serviceName: string
 ): Promise<PreviousFeedResult> {
   const logger = Logger.configure('utils.getPreviousFeed')
 
-  // キャッシュがあれば、それを使用
   if (
     feedCache[serviceName] !== undefined &&
-    Date.now() - feedCache[serviceName].lastFetched.getTime() < 3_600_000 // 1時間以内
+    Date.now() - feedCache[serviceName].lastFetched.getTime() < 3_600_000
   ) {
     logger.info(`🔄 Using cached feed for ${serviceName}`)
     return { status: 'ok', items: feedCache[serviceName].items }
   }
 
   try {
-    // GitHub Pagesから最新のフィードを取得
     const feedUrl = `https://book000.github.io/rss-deliver/${serviceName}.xml`
     logger.info(`📥 Fetching previous feed from ${feedUrl}`)
 
@@ -113,7 +111,6 @@ export async function loadPreviousFeed(
     try {
       const itemsArray = parsePreviousFeed(await res.text())
 
-      // キャッシュに保存
       feedCache[serviceName] = {
         lastFetched: new Date(),
         items: itemsArray,
@@ -132,9 +129,9 @@ export async function loadPreviousFeed(
 }
 
 /**
- * GitHub Pagesから公開されているRSSフィードを取得する
- * @param serviceName サービス名
- * @returns 前回のRSSフィードのアイテム、または取得失敗時は空配列
+ * Fetches the RSS feed published on GitHub Pages.
+ * @param serviceName Service class name
+ * @returns Items of the previous feed, or an empty array on failure
  */
 export async function getPreviousFeed(serviceName: string): Promise<RssItem[]> {
   const result = await loadPreviousFeed(serviceName)
@@ -142,13 +139,13 @@ export async function getPreviousFeed(serviceName: string): Promise<RssItem[]> {
 }
 
 /**
- * 新しいアイテムと前回のアイテムを比較して、pubDateを引き継ぐ
- * 削除記事履歴からもpubDateを復元する
- * @param newItem 新しいアイテム
- * @param previousItems 前回のアイテムリスト
- * @param deletedHistory 削除記事履歴（オプション）
- * @param serviceName サービス名（ログ用）
- * @returns pubDateが設定されたアイテム
+ * Inherits pubDate from the previous feed for an item that has none, falling back to the deleted-articles history.
+ * Items are matched by ID.
+ * @param newItem New item
+ * @param previousItems Items of the previous feed
+ * @param deletedHistory Deleted-articles history (optional)
+ * @param serviceName Service name (for logging)
+ * @returns The item, with pubDate set if one was found
  */
 export function inheritPubDate(
   newItem: Item,
@@ -156,7 +153,6 @@ export function inheritPubDate(
   deletedHistory?: DeletedArticlesHistory | null,
   serviceName?: string
 ): Item {
-  // すでにpubDateがある場合はそのまま返す
   if (newItem.pubDate) {
     return newItem
   }
@@ -165,16 +161,13 @@ export function inheritPubDate(
     `utils.inheritPubDate${serviceName ? `.${serviceName}` : ''}`
   )
 
-  // IDとして使える値を決定（優先順位: guid > link > title）
   const itemId = (newItem.guid?.['#text'] ?? newItem.link) || newItem.title
 
-  // 前回のアイテムから一致するものを検索
   const previousItem = previousItems.find((item) => {
     const prevId = (item.guid?.['#text'] ?? item.link) || item.title
     return prevId === itemId
   })
 
-  // 前回のpubDateがある場合は引き継ぐ
   if (previousItem?.pubDate) {
     return {
       ...newItem,
@@ -182,7 +175,6 @@ export function inheritPubDate(
     }
   }
 
-  // 削除記事履歴からpubDateを復元
   if (deletedHistory) {
     const deletedPubDate = getPubDateFromDeletedHistory(itemId, deletedHistory)
     if (deletedPubDate) {
@@ -198,6 +190,5 @@ export function inheritPubDate(
     }
   }
 
-  // どちらにもない場合は undefined のまま返す
   return newItem
 }

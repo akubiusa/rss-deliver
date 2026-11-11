@@ -1,29 +1,29 @@
 /**
- * 削除記事の情報を表すインターフェース
+ * An article that disappeared from a feed
  */
 export interface DeletedArticle {
-  /** 記事の識別子（guid?.['#text'] || link || title） */
+  /** Article identifier: the guid text, else the link, else the title */
   id: string
-  /** 記事タイトル */
+  /** Article title */
   title: string
-  /** 記事URL */
+  /** Article URL */
   link: string
-  /** 記事公開日時（ISO 8601形式） */
+  /** Publication date of the article */
   pubDate: string
-  /** 削除検出日時（ISO 8601形式） */
+  /** Detection time of the deletion (ISO 8601) */
   deletedAt: string
-  /** サービス名 */
+  /** Service class name */
   serviceName: string
 }
 
 /**
- * 削除記事履歴全体を表すインターフェース
+ * The whole deleted-articles history file
  */
 export interface DeletedArticlesHistory {
-  /** スキーマバージョン */
+  /** Schema version */
   version: string
-  /** 最終更新日時（ISO 8601形式） */
+  /** Last update time (ISO 8601) */
   lastUpdated: string
-  /** 削除記事の配列 */
+  /** Deleted articles */
   articles: DeletedArticle[]
 }

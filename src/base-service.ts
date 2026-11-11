@@ -10,10 +10,10 @@ export abstract class BaseService {
   abstract collect(): Promise<CollectResult>
 
   /**
-   * RSSアイテムのpubDateを処理する
-   * pubDateが設定されていない場合、前回のフィードから引き継ぐか削除記事履歴から復元、最後に現在時刻を設定する
-   * @param items 処理するアイテムリスト
-   * @returns pubDateが設定されたアイテムリスト
+   * Fills in the pubDate of items that have none.
+   * The value is inherited from the previous feed, then restored from the deleted-articles history, and finally set to the current time.
+   * @param items Items to process
+   * @returns Items with pubDate set
    */
   async processPubDates(items: Item[]): Promise<Item[]> {
     const logger = Logger.configure(`${this.constructor.name}.processPubDates`)
@@ -21,13 +21,10 @@ export abstract class BaseService {
 
     const countHasPubDate = items.filter((item) => item.pubDate).length
 
-    // 前回のフィードを取得
     const previousItems = await getPreviousFeed(this.constructor.name)
 
-    // 削除記事履歴を取得
     const deletedHistory = await fetchDeletedArticlesHistory()
 
-    // 各アイテムのpubDateを処理
     const processedItems = items.map((item) =>
       inheritPubDate(item, previousItems, deletedHistory, this.constructor.name)
     )
@@ -36,14 +33,13 @@ export abstract class BaseService {
       processedItems.filter((item) => item.pubDate && item.pubDate !== '')
         .length - countHasPubDate
 
-    // pubDateが設定されていないアイテムには現在時刻を設定
     const now = new Date()
     const processedItemsWithNow = processedItems.map((item) => {
       if (!item.pubDate) {
         logger.warn(`No pubDate found for item: ${item.title}. Setting to now.`)
         return {
           ...item,
-          pubDate: now.toUTCString(), // 現在時刻を設定
+          pubDate: now.toUTCString(),
         }
       }
       return item
