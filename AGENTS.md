@@ -37,7 +37,7 @@ CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow fro
 - `src/services/`: one class per feed. The class name is the feed file name.
 - `src/types.d.ts`: ambient type declarations.
 - `src/model/`: `collect-result.ts` (`Item`, `CollectResult`), `service-information.ts` (channel fields), `deleted-article.ts`.
-- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, only on runs with new deletions or when no history could be fetched), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
+- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, on every run), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
 - `src/verify/`: offline verification script and fixtures.
 - `.github/workflows/update-rss.yml`: hourly collection and GitHub Pages deployment on a self-hosted runner.
 

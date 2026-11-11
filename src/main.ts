@@ -148,28 +148,12 @@ async function generateRSS() {
     `📊 Total deleted articles detected: ${allDeletedArticles.length}`
   )
 
-  if (allDeletedArticles.length > 0) {
-    logger.info(
-      `🗑️ Detected ${allDeletedArticles.length} deleted articles across all services`
-    )
-    deletedHistory = updateDeletedArticlesHistory(
-      deletedHistory,
-      allDeletedArticles
-    )
-    saveDeletedArticlesHistory(deletedHistory)
-  } else {
-    logger.info('📄 No deleted articles detected, creating empty history file')
-
-    // Ensure the history file exists
-    if (!deletedHistory) {
-      deletedHistory = {
-        version: '1.0',
-        lastUpdated: new Date().toISOString(),
-        articles: [],
-      }
-      saveDeletedArticlesHistory(deletedHistory)
-    }
-  }
+  // output/ is deployed wholesale, so the history must be written on every run to survive the next deploy
+  deletedHistory = updateDeletedArticlesHistory(
+    deletedHistory,
+    allDeletedArticles
+  )
+  saveDeletedArticlesHistory(deletedHistory)
 }
 
 function generateList() {
