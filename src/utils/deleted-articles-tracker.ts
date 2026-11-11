@@ -26,8 +26,11 @@ const DELETED_ARTICLES_HISTORY_URL =
 
 /**
  * Returns the unique ID of an article: the guid text, else the link, else the title.
+ * Empty values fall back to the next candidate.
+ * @param item Article item
+ * @returns Unique ID of the article
  */
-function getItemId(item: RssItem | Item): string {
+export function getItemId(item: RssItem | Item): string {
   return (item.guid?.['#text'] ?? item.link) || item.title
 }
 

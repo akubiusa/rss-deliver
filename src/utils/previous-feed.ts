@@ -2,7 +2,10 @@ import { XMLParser } from 'fast-xml-parser'
 import { Logger } from '@book000/node-utils'
 import { Item } from '@/model/collect-result'
 import { DeletedArticlesHistory } from '@/model/deleted-article'
-import { getPubDateFromDeletedHistory } from './deleted-articles-tracker'
+import {
+  getItemId,
+  getPubDateFromDeletedHistory,
+} from './deleted-articles-tracker'
 
 interface RssItem {
   title: string
@@ -161,11 +164,10 @@ export function inheritPubDate(
     `utils.inheritPubDate${serviceName ? `.${serviceName}` : ''}`
   )
 
-  const itemId = (newItem.guid?.['#text'] ?? newItem.link) || newItem.title
+  const itemId = getItemId(newItem)
 
   const previousItem = previousItems.find((item) => {
-    const prevId = (item.guid?.['#text'] ?? item.link) || item.title
-    return prevId === itemId
+    return getItemId(item) === itemId
   })
 
   if (previousItem?.pubDate) {
