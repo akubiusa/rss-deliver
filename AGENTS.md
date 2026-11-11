@@ -28,15 +28,16 @@ pnpm exec tsx src/verify/disney-parks-new-shows.ts   # offline verification of D
 
 There is no build step and no test framework; `tsx` runs the TypeScript directly. Run `pnpm lint` before committing, and the verify script when you touch `src/utils/show-classifier.ts` or `src/services/disney-parks-new-shows.ts`. Node.js is pinned in `.node-version` and pnpm in `package.json`.
 
-CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow from `book000/templates`. `.depcheckrc.json` ignores the ESLint plugins that are only referenced from the config. `canvas` and `sharp` need the apt packages in `.github/apt-packages.txt`, and their native builds are limited by `pnpm.supportedArchitectures` in `package.json`.
+CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow from `book000/templates`. `.depcheckrc.json` ignores the ESLint plugins that are only referenced from the config. `canvas` needs the apt packages in `.github/apt-packages.txt` to build, and the platforms of the native binaries of `canvas` and `sharp` are limited by `pnpm.supportedArchitectures` in `package.json`. CI must pass before merging.
 
 ## Structure
 
 - `src/main.ts`: entry point. Runs the services (registered in the `services` array), writes the feeds, detects deleted articles and generates `index.html` from `template.html`.
 - `src/base-service.ts`: abstract `BaseService` (`information()`, `collect()`, and `processPubDates()` which `main.ts` calls).
 - `src/services/`: one class per feed. The class name is the feed file name.
+- `src/types.d.ts`: ambient type declarations.
 - `src/model/`: `collect-result.ts` (`Item`, `CollectResult`), `service-information.ts` (channel fields), `deleted-article.ts`.
-- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`), `deleted-articles-tracker.ts` (detects and persists deleted articles), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
+- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, only on runs with new deletions or when no history could be fetched), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
 - `src/verify/`: offline verification script and fixtures.
 - `.github/workflows/update-rss.yml`: hourly collection and GitHub Pages deployment on a self-hosted runner.
 
@@ -52,11 +53,11 @@ When a source is unavailable, return `{ status: false, items: [] }` (a service t
 
 ## Conventions
 
-- TypeScript (ESM) with `strict`. Do not enable `skipLibCheck`. Avoid `any`.
+- TypeScript (ESM) with `strict`. Declare types explicitly, avoid `any`, and do not enable `skipLibCheck`.
 - ESLint (`@book000/eslint-config`) and Prettier; `pnpm lint` enforces them.
 - Naming: classes `PascalCase`, functions and variables `camelCase`, constants `UPPER_SNAKE_CASE`.
 - Write JSDoc for functions and interfaces; keep `@param`/`@returns`/`@throws` in sync with the code.
-- Inside `src/services` and `src/utils`, import with the `@/*` alias (`src/*`, set in `tsconfig.json`); `src/main.ts` and `src/base-service.ts` use relative imports.
+- Inside `src/services` and `src/utils`, prefer the `@/*` alias (`src/*`, set in `tsconfig.json`); `src/main.ts`, `src/base-service.ts` and one import in `src/utils/previous-feed.ts` use relative imports.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/); branches follow [Conventional Branch](https://conventional-branch.github.io) short form (`feat/...`, `fix/...`).
 - Do not commit to Renovate PRs.
 - When commands, the feed list or the output layout change, update `README.md` and this file.

@@ -21,7 +21,6 @@ interface RssItem {
   source?: string
 }
 
-// URL of the history file on GitHub Pages
 const DELETED_ARTICLES_HISTORY_URL =
   'https://book000.github.io/rss-deliver/deleted-articles-history.json'
 

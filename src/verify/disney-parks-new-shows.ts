@@ -136,7 +136,6 @@ function links(items: Item[]): string[] {
 
 /**
  * Verifies pairs of classifyShow input and expected result.
- * Articles for which a false positive or a miss was found are kept as cases to prevent regressions.
  */
 function verifyClassifier(): void {
   const longFiller = 'park news and updates for guests. '.repeat(40)
@@ -477,7 +476,7 @@ function readFixture(name: string): string {
 }
 
 /**
- * Verifies that classifyShow agrees with the ground-truth labels that a person gave to real articles.
+ * Verifies that classifyShow agrees with the labels of real articles.
  * Announcements of new shows and parades are positive; sponsorship, annual events, operations, corporate information, pricing and the like are negative.
  * The corpus includes articles used to tune the rules, so it does not guarantee accuracy on unseen articles; it is for detecting regressions.
  */
@@ -507,8 +506,7 @@ function verifyLabeledCorpus(): void {
 }
 
 /**
- * Verifies that each parser returns as many candidates as were counted independently from the samples.
- * The expected counts are the numbers of `<item>` and `li[entrydate]` in the samples, counted separately.
+ * Verifies that each parser returns the expected number of candidates for the saved samples.
  */
 function verifyParsers(): void {
   const dpbXml = readFixture('dpb.xml')

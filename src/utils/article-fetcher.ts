@@ -40,7 +40,7 @@ const DEFAULT_HEADERS: Record<string, string> = {
   DNT: '1',
 }
 
-/** Default cache lifetime in milliseconds (7 days) */
+/** Default cache lifetime in milliseconds */
 const DEFAULT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 /** Base directory of the cache */

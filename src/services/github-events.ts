@@ -46,7 +46,7 @@ function extractEventUrl(description: string): string | undefined {
 export default class GitHubEvents extends BaseService {
   /**
    * Returns the feed metadata.
-   * @returns Feed title, link, description and related channel fields
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -78,14 +78,12 @@ export default class GitHubEvents extends BaseService {
 
       const calendar = ical.sync.parseICS(await res.text())
 
-      // Keep VEVENT components only
       const events = Object.values(calendar).filter(
         (component): component is VEvent => component?.type === 'VEVENT'
       )
 
       logger.info(`📅 Found ${events.length} events`)
 
-      // Sort by start time, newest first
       const sortedEvents = events.toSorted((a, b) => {
         const aTime = a.start instanceof Date ? a.start.getTime() : 0
         const bTime = b.start instanceof Date ? b.start.getTime() : 0
@@ -97,7 +95,6 @@ export default class GitHubEvents extends BaseService {
         const title = getParameterValue(event.summary) ?? '(タイトルなし)'
         const descriptionRaw = getParameterValue(event.description)
 
-        // Event URL: the event's own URL, else the first link in the description, else the events page
         const eventUrl =
           event.url ??
           (descriptionRaw ? extractEventUrl(descriptionRaw) : undefined) ??

@@ -87,7 +87,6 @@ export default class Fish4Koma extends BaseService {
         images.push(fullImageUrl)
       })
 
-      // Also take original images linked via <a>
       articleBody.find('a').each((_, element) => {
         const href = $(element).attr('href')
         if (
@@ -112,7 +111,6 @@ export default class Fish4Koma extends BaseService {
       let largestImageUrl: string | null = null
       let maxImageSize = 0
 
-      // Find the largest image by pixel area
       for (const imageUrl of images) {
         try {
           const imageRes = await fetch(imageUrl)
@@ -143,7 +141,6 @@ export default class Fish4Koma extends BaseService {
           if (imageRes2.ok) {
             const buffer = Buffer.from(await imageRes2.arrayBuffer())
 
-            // Trim the surrounding border, then add a 10px white margin
             const processedBuffer = await sharp(buffer)
               .trim()
               .extend({

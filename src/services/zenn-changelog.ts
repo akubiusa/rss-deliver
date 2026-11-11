@@ -70,7 +70,7 @@ interface ZeenChangelogResponse {
 export default class ZennChangelog extends BaseService {
   /**
    * Returns the feed metadata.
-   * @returns Feed title, link, description and related channel fields
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -108,7 +108,6 @@ export default class ZennChangelog extends BaseService {
     const oldFeed: ZeenChangelogResponse = parser.parse(await res.text())
     const items: Item[] = []
     for (const item of oldFeed.rss.channel.item.slice(0, 10)) {
-      // Only the latest 10 entries
       const link: string = item.link
       const itemUrl = `https://info.zenn.dev/${link.split('/').pop() ?? ''}`
 

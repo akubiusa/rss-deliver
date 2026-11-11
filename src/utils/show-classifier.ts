@@ -49,7 +49,7 @@ const SEP = String.raw`[\s,:"“”‘’]+`
 /** Coordinating or accompanying words that start another noun phrase (English and French). Not allowed between words; `in` and `of` inside show names are allowed */
 const BREAK_WORD = `(?:and|or|plus|with|but|et|ou|avec)(?![a-z0-9'&-])`
 
-/** Up to three words allowed in between (English and French). Does not match across another noun phrase */
+/** Words allowed in between (English and French). Does not match across another noun phrase */
 const WORDS = `(?:(?!${BREAK_WORD})[a-z0-9'&-]+${SEP}){0,3}?`
 
 /** Any characters up to the sentence end (Japanese) */

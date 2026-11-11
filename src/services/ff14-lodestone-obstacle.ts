@@ -8,7 +8,7 @@ import * as cheerio from 'cheerio'
 export default class FF14LodestoneObstacle extends BaseService {
   /**
    * Returns the feed metadata.
-   * @returns Feed title, link, description and related channel fields
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -43,14 +43,7 @@ export default class FF14LodestoneObstacle extends BaseService {
 
     const $ = cheerio.load(data)
     const items: Item[] = []
-    /*
-      -: Latest
-      1: Topics
-      2: Notices
-      3: Maintenance
-      4: Updates
-      5: Obstacles (service incidents)
-    */
+    // nth-child(5) of the news boxes is the obstacles box
     const obstacle = $(
       '#toptabchanger_newsarea > div.toptabchanger_newsbox:nth-child(5) li.news__list a'
     )

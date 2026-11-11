@@ -30,7 +30,6 @@ type PreviousFeedCache = Record<
   | undefined
 >
 
-// In-process cache to avoid fetching the same feed twice in a run
 const feedCache: PreviousFeedCache = {}
 
 /**
@@ -86,7 +85,7 @@ export async function loadPreviousFeed(
 
   if (
     feedCache[serviceName] !== undefined &&
-    Date.now() - feedCache[serviceName].lastFetched.getTime() < 3_600_000 // within 1 hour
+    Date.now() - feedCache[serviceName].lastFetched.getTime() < 3_600_000
   ) {
     logger.info(`🔄 Using cached feed for ${serviceName}`)
     return { status: 'ok', items: feedCache[serviceName].items }
@@ -141,7 +140,7 @@ export async function getPreviousFeed(serviceName: string): Promise<RssItem[]> {
 
 /**
  * Inherits pubDate from the previous feed for an item that has none, falling back to the deleted-articles history.
- * Items are matched by ID (guid text, else link, else title).
+ * Items are matched by ID.
  * @param newItem New item
  * @param previousItems Items of the previous feed
  * @param deletedHistory Deleted-articles history (optional)
@@ -191,6 +190,5 @@ export function inheritPubDate(
     }
   }
 
-  // Found in neither: pubDate stays undefined
   return newItem
 }

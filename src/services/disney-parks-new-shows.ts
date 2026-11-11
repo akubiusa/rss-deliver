@@ -294,7 +294,7 @@ export function mergeItems(
 
 /**
  * Creates the sources of official news.
- * @returns Five sources (DPB, Paris, Hong Kong, Shanghai and Tokyo)
+ * @returns Fetchers of the official news sources
  */
 function createSources(): SourceFetcher[] {
   const fetchText = async (url: string, timeoutMs: number): Promise<string> => {
@@ -377,7 +377,7 @@ function isHttpUrl(link: string): boolean {
 export default class DisneyParksNewShows extends BaseService {
   /**
    * Returns the feed metadata.
-   * @returns Feed title, link, description and related channel fields
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {

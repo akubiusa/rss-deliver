@@ -103,7 +103,6 @@ async function generateRSS() {
     new DisneyParksNewShows(),
   ]
 
-  // Deleted articles detected across all services
   const allDeletedArticles: DeletedArticle[] = []
 
   const promises: Promise<void>[] = services.map(async (service) => {
@@ -114,7 +113,6 @@ async function generateRSS() {
 
       const collectedItems = await generateRSSService(service)
 
-      // Detect deleted articles only if collection succeeded and a previous feed exists
       if (collectedItems) {
         if (previousItems.length > 0) {
           const deletedArticles = detectDeletedArticles(
@@ -162,7 +160,7 @@ async function generateRSS() {
   } else {
     logger.info('📄 No deleted articles detected, creating empty history file')
 
-    // Create an empty history file even if nothing was deleted, but only if none exists yet
+    // Ensure the history file exists
     if (!deletedHistory) {
       deletedHistory = {
         version: '1.0',

@@ -223,7 +223,6 @@ export default class PopTeamEpic extends BaseService {
 
       const imageUrls = await this.fetchEpisodeImages(episode.url, logger)
 
-      // Fall back to the thumbnail if no page image could be obtained
       if (imageUrls.length === 0 && episode.thumbnailUrl) {
         logger.warn(`⚠️ Falling back to thumbnail for ${episode.title}`)
         const thumbnailUrls = await this.saveImages(
@@ -257,11 +256,11 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * Fetches the latest 10 episodes from the official RSS (`<series URL>/rss`).
+   * Fetches the latest episodes from the official RSS (`<series URL>/rss`).
    *
    * @param seriesUrl URL of the series page
    * @param logger Logger
-   * @returns Episodes (empty array on failure)
+   * @returns Episodes; empty if the RSS responds with a non-200 status, cannot be parsed or has no items. A network error from fetch propagates
    */
   private async fetchTakecomicEpisodesFromRss(
     seriesUrl: string,
@@ -387,7 +386,6 @@ export default class PopTeamEpic extends BaseService {
    * @returns The viewerId, or null if not found
    */
   private extractViewerId(html: string): string | null {
-    // Look for the viewerId in the data-comici-viewer-id attribute
     const dataAttrRegex = /data-comici-viewer-id="([a-f0-9]{32})"/i
     const dataAttrMatch = dataAttrRegex.exec(html)
     if (dataAttrMatch?.[1]) {
@@ -423,7 +421,6 @@ export default class PopTeamEpic extends BaseService {
       Accept: 'application/json, text/plain, */*',
     }
 
-    // Step 1: get totalPages with page-to=1
     const initialParams = new URLSearchParams({
       'user-id': '',
       'comici-viewer-id': viewerId,
@@ -452,7 +449,6 @@ export default class PopTeamEpic extends BaseService {
       return initialData
     }
 
-    // Step 2: fetch all pages
     const fullParams = new URLSearchParams({
       'user-id': '',
       'comici-viewer-id': viewerId,
@@ -613,7 +609,7 @@ export default class PopTeamEpic extends BaseService {
   }
 
   /**
-   * Saves a restored image to `output/popute/` after trimming it and adding a 10px white margin.
+   * Saves a restored image to `output/popute/` after trimming it and adding a white margin.
    *
    * @param buffer Image buffer
    * @returns URL of the saved image

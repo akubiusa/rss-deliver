@@ -15,7 +15,7 @@ export default class TdrUpdates extends BaseService {
 
   /**
    * Returns the feed metadata.
-   * @returns Feed title, link, description and related channel fields
+   * @returns Feed metadata
    */
   information(): ServiceInformation {
     return {
@@ -71,14 +71,12 @@ export default class TdrUpdates extends BaseService {
 
       let content: string
       if (url.endsWith('.pdf')) {
-        // Render each PDF page to an image and use the images as the content
         const pdfUrls = await this.pdf2png(url)
         content = pdfUrls.map((pdfUrl) => `<img src="${pdfUrl}">`).join('<br>')
       } else {
         try {
           content = await fetchArticleWithCache(url, this, logger)
         } catch (error) {
-          // Fall back to the category and title from the list page
           logger.error(
             `Failed to fetch article, using fallback: ${url}`,
             error as Error
