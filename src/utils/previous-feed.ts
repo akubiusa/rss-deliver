@@ -1,4 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
+import fs from 'node:fs'
 import { Logger } from '@book000/node-utils'
 import { Item } from '@/model/collect-result'
 import { DeletedArticlesHistory } from '@/model/deleted-article'
@@ -29,6 +30,7 @@ type PreviousFeedCache = Record<
   | {
       lastFetched: Date
       items: RssItem[]
+      xml: string
     }
   | undefined
 >
@@ -45,6 +47,8 @@ export interface PreviousFeedResult {
   status: 'ok' | 'not-found' | 'error'
   /** Previous items (empty unless status is ok) */
   items: RssItem[]
+  /** Raw XML of the previous feed (set only when status is ok) */
+  xml?: string
 }
 
 /**
@@ -91,7 +95,11 @@ export async function loadPreviousFeed(
     Date.now() - feedCache[serviceName].lastFetched.getTime() < 3_600_000
   ) {
     logger.info(`🔄 Using cached feed for ${serviceName}`)
-    return { status: 'ok', items: feedCache[serviceName].items }
+    return {
+      status: 'ok',
+      items: feedCache[serviceName].items,
+      xml: feedCache[serviceName].xml,
+    }
   }
 
   try {
@@ -112,15 +120,17 @@ export async function loadPreviousFeed(
     }
 
     try {
-      const itemsArray = parsePreviousFeed(await res.text())
+      const xml = await res.text()
+      const itemsArray = parsePreviousFeed(xml)
 
       feedCache[serviceName] = {
         lastFetched: new Date(),
         items: itemsArray,
+        xml,
       }
 
       logger.info(`✅ Found ${itemsArray.length} previous items`)
-      return { status: 'ok', items: itemsArray }
+      return { status: 'ok', items: itemsArray, xml }
     } catch (error) {
       logger.error('❌ Failed to parse previous feed', error as Error)
       return { status: 'error', items: [] }
@@ -139,6 +149,40 @@ export async function loadPreviousFeed(
 export async function getPreviousFeed(serviceName: string): Promise<RssItem[]> {
   const result = await loadPreviousFeed(serviceName)
   return result.items
+}
+
+/**
+ * Copies the previously published feed to `output/<serviceName>.xml` unchanged, so that a failing service keeps its feed on the deployed site.
+ * Writes nothing if the previous feed was never published or could not be loaded.
+ * Never throws.
+ * @param serviceName Service class name
+ * @returns Whether the previous feed was written
+ */
+export async function carryOverPreviousFeed(
+  serviceName: string
+): Promise<boolean> {
+  const logger = Logger.configure(`utils.carryOverPreviousFeed.${serviceName}`)
+
+  const result = await loadPreviousFeed(serviceName)
+  if (result.status !== 'ok' || result.xml === undefined) {
+    logger.warn(
+      `⚠️ No previous feed to carry over for ${serviceName} (${result.status})`
+    )
+    return false
+  }
+
+  try {
+    fs.writeFileSync(`output/${serviceName}.xml`, result.xml)
+  } catch (error) {
+    logger.error(
+      `❌ Failed to write carried-over feed for ${serviceName}`,
+      error as Error
+    )
+    return false
+  }
+
+  logger.info(`📦 Carried over previous feed for ${serviceName}`)
+  return true
 }
 
 /**

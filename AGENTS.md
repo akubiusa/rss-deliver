@@ -37,7 +37,7 @@ CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow fro
 - `src/services/`: one class per feed. The class name is the feed file name.
 - `src/types.d.ts`: ambient type declarations.
 - `src/model/`: `collect-result.ts` (`Item`, `CollectResult`), `service-information.ts` (channel fields), `deleted-article.ts`.
-- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, on every run), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
+- `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`, `carryOverPreviousFeed`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, on every run), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
 - `src/verify/`: offline verification script and fixtures.
 - `.github/workflows/update-rss.yml`: hourly collection and GitHub Pages deployment on a self-hosted runner.
 
@@ -49,7 +49,7 @@ CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow fro
 4. Log with `Logger.configure(...)` from `@book000/node-utils`.
 5. Do not implement `pubDate` fallback or deleted-article tracking in a service; `main.ts` and `BaseService` handle them.
 
-When a source is unavailable, return `{ status: false, items: [] }` (a service that throws is also caught per service in `main.ts`), so one failing source does not stop the run. No feed file is written for that service in that run.
+When a source is unavailable, return `{ status: false, items: [] }` (a service that throws is also caught per service in `main.ts`), so one failing source does not stop the run. `main.ts` then copies the previously published feed to `output/` unchanged (`carryOverPreviousFeed`), so the feed stays on the site; no file is written only if the service has never been published or the previous feed cannot be loaded.
 
 ## Conventions
 

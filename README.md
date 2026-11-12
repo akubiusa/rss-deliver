@@ -9,7 +9,7 @@ This is a private-use project (`"private": true`). The sources and the published
 `pnpm start` (`src/main.ts`) runs once per invocation:
 
 1. Loads the deleted-articles history from `https://book000.github.io/rss-deliver/deleted-articles-history.json`.
-2. Runs every service in parallel. For each service it loads the previously published feed from GitHub Pages, calls the service's `collect()`, fills in missing `pubDate` values, and writes `output/<ServiceClassName>.xml`. One failing service does not stop the others.
+2. Runs every service in parallel. For each service it loads the previously published feed from GitHub Pages, calls the service's `collect()`, fills in missing `pubDate` values, and writes `output/<ServiceClassName>.xml`. One failing service does not stop the others, and its previously published feed is copied to `output/` unchanged so that it stays on the site until the service succeeds again.
 3. Compares the previous feed with the new items to detect articles that disappeared, and records them in `output/deleted-articles-history.json` (entries older than 30 days are dropped). The file is written on every run, because `output/` is deployed wholesale and a skipped write would drop it from the site.
 4. Writes `output/index.html`, a list of the generated feeds built from `template.html`.
 
@@ -85,7 +85,7 @@ The `Update RSS` workflow (`.github/workflows/update-rss.yml`) runs hourly (`0 *
 5. Sends a Discord notification (`DISCORD_WEBHOOK`) if a step fails.
 6. Uploads `output/` as the GitHub Pages artifact.
 
-A separate `deploy` job on `ubuntu-latest` then deploys the artifact to GitHub Pages. Because `output/` is uploaded as a whole, a service that produced no file in a run is absent from the deployed site until a later run succeeds.
+A separate `deploy` job on `ubuntu-latest` then deploys the artifact to GitHub Pages. Because `output/` is uploaded as a whole, a service that produced no file in a run is absent from the deployed site until a later run succeeds. A failing service normally keeps its previous feed, so this applies only to a service that has never been published or whose previous feed cannot be loaded.
 
 The `Node CI` workflow (`.github/workflows/nodejs-ci-pnpm.yml`) runs the reusable pnpm CI from `book000/templates` on pushes and pull requests to `main`/`master`.
 

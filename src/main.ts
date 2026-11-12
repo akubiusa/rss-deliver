@@ -23,7 +23,7 @@ import {
   saveDeletedArticlesHistory,
 } from './utils/deleted-articles-tracker'
 import { DeletedArticle } from './model/deleted-article'
-import { getPreviousFeed } from './utils/previous-feed'
+import { carryOverPreviousFeed, getPreviousFeed } from './utils/previous-feed'
 import { Item } from './model/collect-result'
 
 /**
@@ -32,7 +32,7 @@ import { Item } from './model/collect-result'
  * collect() runs only once here; the collected items are returned so that deleted-article detection can reuse them.
  *
  * @param service Target service
- * @returns Collected items before pubDate processing, or undefined if collection failed
+ * @returns Collected items before pubDate processing, or undefined if the service failed (its previous feed is carried over when one is available)
  */
 async function generateRSSService(
   service: BaseService
@@ -45,40 +45,48 @@ async function generateRSSService(
     format: true,
   })
 
-  const collect = await service.collect()
-  if (!collect.status) {
+  try {
+    const collect = await service.collect()
+    if (collect.status) {
+      const processedItems = await service.processPubDates(collect.items)
+
+      const object = {
+        '?xml': {
+          '@_version': '1.0',
+          // eslint-disable-next-line unicorn/text-encoding-identifier-case
+          '@_encoding': 'UTF-8',
+        },
+        rss: {
+          '@_version': '2.0',
+          '@_xmlns:dc': 'https://purl.org/dc/elements/1.1/',
+          '@_xmlns:content': 'https://purl.org/rss/1.0/modules/content/',
+          '@_xmlns:atom': 'https://www.w3.org/2005/Atom',
+          channel: {
+            ...service.information(),
+            item: processedItems,
+          },
+        },
+      }
+
+      const feed: {
+        toString: () => string
+      } = builder.build(object)
+
+      fs.writeFileSync('output/' + filename + '.xml', feed.toString())
+      logger.info(`✅ Generated ${filename}`)
+
+      return collect.items
+    }
     logger.warn(`❌ ${filename} is not available`)
-    return undefined
+  } catch (error) {
+    logger.error(
+      `❌ Error occurred while generating ${filename}`,
+      error as Error
+    )
   }
 
-  const processedItems = await service.processPubDates(collect.items)
-
-  const object = {
-    '?xml': {
-      '@_version': '1.0',
-      // eslint-disable-next-line unicorn/text-encoding-identifier-case
-      '@_encoding': 'UTF-8',
-    },
-    rss: {
-      '@_version': '2.0',
-      '@_xmlns:dc': 'https://purl.org/dc/elements/1.1/',
-      '@_xmlns:content': 'https://purl.org/rss/1.0/modules/content/',
-      '@_xmlns:atom': 'https://www.w3.org/2005/Atom',
-      channel: {
-        ...service.information(),
-        item: processedItems,
-      },
-    },
-  }
-
-  const feed: {
-    toString: () => string
-  } = builder.build(object)
-
-  fs.writeFileSync('output/' + filename + '.xml', feed.toString())
-  logger.info(`✅ Generated ${filename}`)
-
-  return collect.items
+  await carryOverPreviousFeed(filename)
+  return undefined
 }
 
 async function generateRSS() {
