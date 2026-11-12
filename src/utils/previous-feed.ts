@@ -5,7 +5,7 @@ import { DeletedArticlesHistory } from '@/model/deleted-article'
 import {
   getItemId,
   getPubDateFromDeletedHistory,
-} from './deleted-articles-tracker'
+} from '@/utils/deleted-articles-tracker'
 
 interface RssItem {
   title: string

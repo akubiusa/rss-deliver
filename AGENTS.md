@@ -57,7 +57,7 @@ When a source is unavailable, return `{ status: false, items: [] }` (a service t
 - ESLint (`@book000/eslint-config`) and Prettier; `pnpm lint` enforces them.
 - Naming: classes `PascalCase`, functions and variables `camelCase`, constants `UPPER_SNAKE_CASE`.
 - Write JSDoc for functions and interfaces; keep `@param`/`@returns`/`@throws` in sync with the code.
-- Inside `src/services` and `src/utils`, prefer the `@/*` alias (`src/*`, set in `tsconfig.json`); `src/main.ts`, `src/base-service.ts` and one import in `src/utils/previous-feed.ts` use relative imports.
+- Inside `src/services` and `src/utils`, prefer the `@/*` alias (`src/*`, set in `tsconfig.json`); `src/main.ts` and `src/base-service.ts` use relative imports.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/); branches follow [Conventional Branch](https://conventional-branch.github.io) short form (`feat/...`, `fix/...`).
 - Do not commit to Renovate PRs.
 - When commands, the feed list or the output layout change, update `README.md` and this file.
