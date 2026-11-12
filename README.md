@@ -98,4 +98,4 @@ See `AGENTS.md` for development conventions.
 
 ## License
 
-MIT, as declared in `package.json`. The repository has no `LICENSE` file.
+[MIT](LICENSE), as declared in `package.json`.
