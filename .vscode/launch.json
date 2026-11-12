@@ -4,7 +4,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch",
-      "runtimeExecutable": "yarn",
+      "runtimeExecutable": "pnpm",
       "cwd": "${workspaceFolder}",
       "runtimeArgs": ["dev"],
     }
