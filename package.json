@@ -9,7 +9,6 @@
   "license": "MIT",
   "author": "Tomachi",
   "private": true,
-  "main": "dist/main.js",
   "type": "module",
   "repository": {
     "type": "git",
