@@ -208,6 +208,7 @@ async function main() {
   generateList()
 }
 
-;(async () => {
-  await main()
-})()
+main().catch((error: unknown) => {
+  Logger.configure('main').error('Failed to generate RSS', error as Error)
+  process.exitCode = 1
+})

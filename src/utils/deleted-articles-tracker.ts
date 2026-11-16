@@ -36,7 +36,8 @@ export function getItemId(item: RssItem | Item): string {
 
 /**
  * Fetches the deleted-articles history from GitHub Pages.
- * @returns The history, or null if it could not be fetched
+ * @returns The history, or null if it does not exist
+ * @throws If the history cannot be fetched or read
  */
 export async function fetchDeletedArticlesHistory(): Promise<DeletedArticlesHistory | null> {
   const logger = Logger.configure('utils.fetchDeletedArticlesHistory')
@@ -47,19 +48,29 @@ export async function fetchDeletedArticlesHistory(): Promise<DeletedArticlesHist
       signal: AbortSignal.timeout(10_000),
     })
 
-    if (res.status !== 200) {
-      logger.warn(`❌ Failed to fetch deleted articles history: ${res.status}`)
+    if (res.status === 404) {
       return null
     }
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`)
+    }
 
-    const data = (await res.json()) as DeletedArticlesHistory
+    const data: unknown = await res.json()
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      !('articles' in data) ||
+      !Array.isArray(data.articles)
+    ) {
+      throw new Error('Invalid deleted articles history')
+    }
     logger.info(
       `✅ Fetched deleted articles history with ${data.articles.length} articles`
     )
-    return data
+    return data as DeletedArticlesHistory
   } catch (error) {
     logger.error('❌ Failed to fetch deleted articles history', error as Error)
-    return null
+    throw error
   }
 }
 
