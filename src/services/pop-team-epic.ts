@@ -3,7 +3,7 @@ import { Logger } from '@book000/node-utils'
 import CollectResult, { Item } from '@/model/collect-result'
 import ServiceInformation from '@/model/service-information'
 import * as cheerio from 'cheerio'
-import { XMLParser } from 'fast-xml-parser'
+import { XMLParser, XMLValidator } from 'fast-xml-parser'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import sharp, { type OverlayOptions } from 'sharp'
@@ -260,7 +260,8 @@ export default class PopTeamEpic extends BaseService {
    *
    * @param seriesUrl URL of the series page
    * @param logger Logger
-   * @returns Episodes; empty if the RSS responds with a non-200 status, cannot be parsed or has no items. A network error from fetch propagates
+   * @returns Episodes from the official RSS
+   * @throws If the RSS cannot be fetched or parsed, or contains no usable items
    */
   private async fetchTakecomicEpisodesFromRss(
     seriesUrl: string,
@@ -270,23 +271,28 @@ export default class PopTeamEpic extends BaseService {
     const res = await fetch(rssUrl)
     if (res.status !== 200) {
       logger.warn(`❗ Failed to fetch official RSS (${res.status}) ${rssUrl}`)
-      return []
+      throw new Error(`Failed to fetch official RSS (${res.status})`)
     }
 
     let rawItems: TakecomicRssItem | TakecomicRssItem[] | undefined
     try {
+      const xml = await res.text()
+      // The parser's bundled validator avoids adding a separate dependency.
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      if (XMLValidator.validate(xml) !== true) {
+        throw new Error('Invalid XML')
+      }
       const parser = new XMLParser({
         ignoreAttributes: false,
       })
-      const rss = parser.parse(await res.text()) as TakecomicRssResponse
+      const rss = parser.parse(xml) as TakecomicRssResponse
       rawItems = rss.rss?.channel?.item
     } catch (error) {
       logger.warn(`❗ Failed to parse official RSS: ${String(error)}`)
-      return []
+      throw new Error('Failed to parse official RSS', { cause: error })
     }
     if (!rawItems) {
-      logger.warn('❗ No item entries in official RSS')
-      return []
+      throw new Error('No item entries in official RSS')
     }
 
     const items = Array.isArray(rawItems) ? rawItems : [rawItems]
@@ -312,6 +318,10 @@ export default class PopTeamEpic extends BaseService {
         date,
         thumbnailUrl,
       })
+    }
+
+    if (episodes.length === 0) {
+      throw new Error('No usable item entries in official RSS')
     }
 
     return episodes.slice(0, 10)
