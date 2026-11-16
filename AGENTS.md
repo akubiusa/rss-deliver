@@ -39,7 +39,8 @@ CI (`.github/workflows/nodejs-ci-pnpm.yml`) calls the reusable pnpm workflow fro
 - `src/model/`: `collect-result.ts` (`Item`, `CollectResult`), `service-information.ts` (channel fields), `deleted-article.ts`.
 - `src/utils/`: `previous-feed.ts` (loads the published feed, `inheritPubDate`, `carryOverPreviousFeed`), `deleted-articles-tracker.ts` (detects deleted articles and writes `output/deleted-articles-history.json`, on every run), `article-fetcher.ts` (`fetchArticleWithCache`, cache in `.article-cache/<kebab-case class name>`), `show-classifier.ts` (rule-based classifier for `DisneyParksNewShows`).
 - `src/verify/`: offline verification script and fixtures.
-- `.github/workflows/update-rss.yml`: hourly collection and GitHub Pages deployment on a self-hosted runner.
+- `.github/workflows/update-rss.yml`: hourly collection and GitHub Pages deployment on a self-hosted runner. It uses the `update-rss` concurrency group (no cancel of a running run) so runs do not pile up while the runner is unavailable.
+- `.github/workflows/monitor-update-rss-queue.yml`: hourly check on `ubuntu-latest` that sends a Discord notification when an `Update RSS` run has been queued for more than 120 minutes.
 
 ### Adding a service
 

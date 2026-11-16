@@ -1,0 +1,61 @@
+name: Monitor Update RSS queue
+
+# The Update RSS job runs on a self-hosted runner, and its own failure notification never runs when the job does not start.
+# This workflow runs on a GitHub-hosted runner and reports Update RSS runs that have been queued for too long.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 * * * *'
+
+permissions:
+  actions: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check for stale queued runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          THRESHOLD_MINUTES: '120'
+        run: |
+          set -euo pipefail
+
+          runs=$(gh run list --workflow update-rss.yml --status queued --json createdAt,url --limit 100)
+          now=$(date +%s)
+
+          stale=$(jq -c --argjson now "$now" --argjson limit "$((THRESHOLD_MINUTES * 60))" '
+            [.[] | select(($now - (.createdAt | fromdateiso8601)) > $limit)]
+            | sort_by(.createdAt)
+            | {
+                count: length,
+                oldest_url: (.[0].url // ""),
+                age_hours: (if length > 0 then (($now - (.[0].createdAt | fromdateiso8601)) / 3600 | floor) else 0 end)
+              }
+          ' <<< "$runs")
+
+          count=$(jq -r '.count' <<< "$stale")
+          if [ "$count" -eq 0 ]; then
+            exit 0
+          fi
+
+          oldest_url=$(jq -r '.oldest_url' <<< "$stale")
+          age_hours=$(jq -r '.age_hours' <<< "$stale")
+          echo "${count} Update RSS run(s) queued for more than ${THRESHOLD_MINUTES} minutes (oldest: ${age_hours} hours, ${oldest_url})"
+
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "::warning::DISCORD_WEBHOOK is not set, skipping the Discord notification"
+            exit 0
+          fi
+
+          body=$(jq -n \
+            --arg url "$oldest_url" \
+            --arg description "${count} run(s) have been queued for more than ${THRESHOLD_MINUTES} minutes. The oldest has been waiting for ${age_hours} hours. The self-hosted runner may be unavailable." \
+            '{embeds: [{title: "RSS Update Queued Too Long", url: $url, description: $description, color: 16711680}]}')
+          curl -fsS -H 'Content-Type: application/json' -d "$body" "$DISCORD_WEBHOOK"

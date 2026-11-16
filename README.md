@@ -87,6 +87,10 @@ The `Update RSS` workflow (`.github/workflows/update-rss.yml`) runs hourly (`0 *
 
 A separate `deploy` job on `ubuntu-latest` then deploys the artifact to GitHub Pages. Because `output/` is uploaded as a whole, a service that produced no file in a run is absent from the deployed site until a later run succeeds. A failing service normally keeps its previous feed, so this applies only to a service that has never been published or whose previous feed cannot be loaded.
 
+`Update RSS` uses the `update-rss` concurrency group: a running run is never cancelled, and at most one further run waits behind it (a newer waiting run replaces an older one), so runs do not pile up while the runner is unavailable.
+
+The `Monitor Update RSS queue` workflow (`.github/workflows/monitor-update-rss-queue.yml`) runs hourly at minute 30 on `ubuntu-latest`. Because the failure notification of `Update RSS` cannot run when its job never starts, this workflow sends a Discord notification (`DISCORD_WEBHOOK`) when an `Update RSS` run has been queued for more than 120 minutes.
+
 The `Node CI` workflow (`.github/workflows/nodejs-ci-pnpm.yml`) runs the reusable pnpm CI from `book000/templates` on pushes and pull requests to `main`/`master`.
 
 ## Adding a service
